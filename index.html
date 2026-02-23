@@ -28,7 +28,7 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     async function loadPosts() {
-      const { data, error } = await sb.from('posts').select('*');
+      const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
       if (error) { console.error(error); return []; }
       return data || [];
     }
@@ -39,15 +39,12 @@
         return;
       }
 
-      const sorted = [...posts].sort(
-        (a, b) => new Date(b.date) - new Date(a.date)
-      );
-
-      feed.innerHTML = sorted.map(renderPost).join('');
+      feed.innerHTML = posts.map(renderPost).join('');
     }
 
     function renderPost(post) {
-      const date = formatDate(post.date);
+      const ts = post.created_at || post.date;
+      const date = formatDateTime(ts);
       let body = '';
 
       if (post.title) {
@@ -59,7 +56,7 @@
       }
 
       return `<article class="post">
-  <time class="post-date" datetime="${escHtml(post.date)}">${date}</time>
+  <time class="post-date" datetime="${escHtml(ts)}">${date}</time>
   ${body}
 </article>`;
     }
@@ -117,11 +114,11 @@
       return m ? m[1] : null;
     }
 
-    function formatDate(iso) {
-      const [y, m, d] = iso.split('-').map(Number);
-      return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-        month: 'long', day: 'numeric', year: 'numeric',
-      });
+    function formatDateTime(iso) {
+      const d = new Date(iso);
+      const date = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      return `${date} · ${time}`;
     }
 
     function escHtml(str) {
