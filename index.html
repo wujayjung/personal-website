@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wujay Jung</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="posts.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Wujay Jung</h1>
+      <p class="tagline">A student of the startup game.</p>
+      <nav>
+        <a href="admin.html">admin</a>
+      </nav>
+    </header>
+
+    <main id="feed">
+      <p class="empty-state">Nothing here yet.</p>
+    </main>
+  </div>
+
+  <script>
+    function loadPosts() {
+      // Read from localStorage (written by admin page)
+      const saved = localStorage.getItem('posts');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+      // Fall back to posts.js static data (for deployed site)
+      return (typeof POSTS !== 'undefined') ? POSTS : [];
+    }
+
+    function renderPosts(posts, feed) {
+      if (!posts.length) {
+        feed.innerHTML = '<p class="empty-state">Nothing here yet.</p>';
+        return;
+      }
+
+      const sorted = [...posts].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
+
+      feed.innerHTML = sorted.map(renderPost).join('');
+    }
+
+    function renderPost(post) {
+      const date = formatDate(post.date);
+      let body = '';
+
+      if (post.title) {
+        body += `<p class="post-title">${escHtml(post.title)}</p>`;
+      }
+
+      if (post.blocks && post.blocks.length) {
+        body += post.blocks.map(renderBlock).join('');
+      }
+
+      return `<article class="post">
+  <time class="post-date" datetime="${escHtml(post.date)}">${date}</time>
+  ${body}
+</article>`;
+    }
+
+    function renderBlock(block) {
+      if (block.type === 'text') {
+        return `<p class="post-content post-block">${escHtml(block.content).replace(/\n/g, '<br>')}</p>`;
+
+      } else if (block.type === 'quote') {
+        let html = `<blockquote class="post-block">${escHtml(block.content)}</blockquote>`;
+        if (block.attribution) {
+          const attr = block.url
+            ? `<a href="${escHtml(block.url)}" target="_blank" rel="noopener">${escHtml(block.attribution)}</a>`
+            : escHtml(block.attribution);
+          html += `<p class="post-attribution">— ${attr}</p>`;
+        }
+        return html;
+
+      } else if (block.type === 'link') {
+        const ytId = getYouTubeId(block.url);
+        if (ytId) {
+          let html = '';
+          if (block.description) {
+            html += `<p class="post-content post-block">${escHtml(block.description).replace(/\n/g, '<br>')}</p>`;
+          }
+          html += `<div class="post-embed post-block"><iframe src="https://www.youtube.com/embed/${ytId}" allowfullscreen loading="lazy"></iframe></div>`;
+          if (block.title) {
+            html += `<p class="post-image-caption">${escHtml(block.title)}</p>`;
+          }
+          return html;
+        }
+        let html = '';
+        if (block.description) {
+          html += `<p class="post-content post-block">${escHtml(block.description).replace(/\n/g, '<br>')}</p>`;
+        }
+        const label = block.title || block.url;
+        html += `<a class="post-link-url post-block" href="${escHtml(block.url)}" target="_blank" rel="noopener">${escHtml(label)}</a>`;
+        return html;
+
+      } else if (block.type === 'image') {
+        let html = `<figure class="post-image post-block"><img src="${block.src}" alt="${escHtml(block.caption || '')}"></figure>`;
+        if (block.caption) {
+          html += `<p class="post-image-caption">${escHtml(block.caption)}</p>`;
+        }
+        return html;
+      }
+
+      return '';
+    }
+
+    function getYouTubeId(url) {
+      const m = url.match(
+        /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+      );
+      return m ? m[1] : null;
+    }
+
+    function formatDate(iso) {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric',
+      });
+    }
+
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    const feed = document.getElementById('feed');
+    renderPosts(loadPosts(), feed);
+  </script>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+
+    <div class="admin-header">
+      <h1>Admin</h1>
+      <a href="index.html">← back to site</a>
+    </div>
+
+    <form id="postForm" novalidate>
+
+      <!-- Title -->
+      <div class="form-group">
+        <label class="form-label" for="postTitle">Title (optional)</label>
+        <input type="text" id="postTitle" placeholder="Give this post a title...">
+      </div>
+
+      <!-- Block editor -->
+      <div class="block-editor" id="blockEditor"></div>
+
+      <!-- Add block toolbar -->
+      <div class="block-add-toolbar">
+        <span class="block-add-label">Add</span>
+        <button type="button" class="block-add-btn" onclick="addBlock('text')">Text</button>
+        <button type="button" class="block-add-btn" onclick="addBlock('quote')">Quote</button>
+        <button type="button" class="block-add-btn" onclick="addBlock('link')">Link</button>
+        <button type="button" class="block-add-btn" onclick="addBlock('image')">Image</button>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center">
+        <button type="submit" class="btn" id="submitBtn">Post</button>
+        <button type="button" class="btn btn-ghost" id="cancelBtn" style="display:none" onclick="cancelEdit()">Cancel</button>
+      </div>
+      <p class="form-status" id="formStatus"></p>
+
+    </form>
+
+    <!-- Existing posts -->
+    <div class="post-list" id="postList" style="display:none">
+      <p class="post-list-header" id="postListHeader"></p>
+      <div id="postItems"></div>
+    </div>
+
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'posts';
+    let posts = [];
+    let editingId = null;
+
+    // ── Boot ──
+
+    function boot() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      posts = saved ? JSON.parse(saved) : [];
+      addBlock('text');
+      renderPostList();
+
+      const flash = sessionStorage.getItem('flash');
+      if (flash) {
+        sessionStorage.removeItem('flash');
+        setStatus(flash);
+        setTimeout(function () { setStatus(''); }, 2500);
+      }
+    }
+
+    // ── Block creation ──
+
+    function addBlock(type, data) {
+      data = data || {};
+      const id = 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      const el = createBlockEl(id, type, data);
+      document.getElementById('blockEditor').appendChild(el);
+      // Focus first input
+      const first = el.querySelector('textarea, input[type="text"], input[type="url"]');
+      if (first) first.focus();
+    }
+
+    function createBlockEl(id, type, data) {
+      const div = document.createElement('div');
+      div.className = 'block';
+      div.dataset.id = id;
+      div.dataset.type = type;
+
+      const labels = { text: 'Text', quote: 'Quote', link: 'Link', image: 'Image' };
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'block-header';
+      header.innerHTML =
+        '<span class="block-type-label">' + labels[type] + '</span>' +
+        '<div class="block-actions">' +
+          '<button type="button" class="block-action-btn" title="Move up" onclick="moveBlock(\'' + id + '\',\'up\')">↑</button>' +
+          '<button type="button" class="block-action-btn" title="Move down" onclick="moveBlock(\'' + id + '\',\'down\')">↓</button>' +
+          '<button type="button" class="block-action-btn delete" title="Delete" onclick="deleteBlock(\'' + id + '\')">×</button>' +
+        '</div>';
+      div.appendChild(header);
+
+      // Body
+      if (type === 'text') {
+        const ta = inputEl('textarea', 'block-content', 'Write something...');
+        ta.value = data.content || '';
+        div.appendChild(ta);
+
+      } else if (type === 'quote') {
+        const ta = inputEl('textarea', 'quote-content', 'The quote...');
+        ta.style.minHeight = '90px';
+        ta.value = data.content || '';
+        div.appendChild(ta);
+
+        const row = document.createElement('div');
+        row.className = 'block-row';
+        const attr = inputEl('input', 'quote-attr', 'Attribution (optional)');
+        attr.value = data.attribution || '';
+        const url = inputEl('input', 'quote-url', 'Source URL (optional)');
+        url.type = 'url';
+        url.value = data.url || '';
+        row.appendChild(attr);
+        row.appendChild(url);
+        div.appendChild(row);
+
+      } else if (type === 'link') {
+        const url = inputEl('input', 'link-url', 'https://...');
+        url.type = 'url';
+        url.value = data.url || '';
+        div.appendChild(url);
+
+        const title = inputEl('input', 'link-title', 'Link title (optional)');
+        title.value = data.title || '';
+        div.appendChild(title);
+
+        const desc = inputEl('textarea', 'link-desc', 'Description (optional)');
+        desc.style.minHeight = '70px';
+        desc.value = data.description || '';
+        div.appendChild(desc);
+
+      } else if (type === 'image') {
+        if (data.src) {
+          div.dataset.src = data.src;
+          const img = document.createElement('img');
+          img.className = 'image-preview-thumb';
+          img.src = data.src;
+          div.appendChild(img);
+        } else {
+          const zone = document.createElement('div');
+          zone.className = 'image-drop-zone';
+          zone.textContent = 'Click to upload · or paste an image anywhere';
+          zone.addEventListener('click', function () {
+            fileInput.click();
+          });
+          div.appendChild(zone);
+
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = 'image/*';
+          fileInput.style.display = 'none';
+          fileInput.addEventListener('change', function () {
+            if (this.files[0]) readImageFile(this.files[0], id);
+          });
+          div.appendChild(fileInput);
+        }
+
+        const caption = inputEl('input', 'image-caption', 'Caption (optional)');
+        caption.value = data.caption || '';
+        div.appendChild(caption);
+      }
+
+      return div;
+    }
+
+    // ── Block helpers ──
+
+    function inputEl(tag, cls, placeholder) {
+      const el = document.createElement(tag === 'textarea' ? 'textarea' : 'input');
+      if (tag === 'input') el.type = 'text';
+      el.className = cls;
+      el.placeholder = placeholder;
+      return el;
+    }
+
+    function moveBlock(id, direction) {
+      const el = document.querySelector('[data-id="' + id + '"]');
+      if (!el) return;
+      const editor = document.getElementById('blockEditor');
+      if (direction === 'up' && el.previousElementSibling) {
+        editor.insertBefore(el, el.previousElementSibling);
+      } else if (direction === 'down' && el.nextElementSibling) {
+        el.nextElementSibling.insertAdjacentElement('afterend', el);
+      }
+    }
+
+    function deleteBlock(id) {
+      document.querySelector('[data-id="' + id + '"]')?.remove();
+    }
+
+    // ── Image handling ──
+
+    function readImageFile(file, blockId) {
+      const reader = new FileReader();
+      reader.onload = function (e) { setImageSrc(blockId, e.target.result); };
+      reader.readAsDataURL(file);
+    }
+
+    function setImageSrc(blockId, src) {
+      const el = document.querySelector('[data-id="' + blockId + '"]');
+      if (!el) return;
+      el.dataset.src = src;
+
+      // Swap drop zone for preview
+      const zone = el.querySelector('.image-drop-zone');
+      const fileInput = el.querySelector('input[type="file"]');
+      if (zone) {
+        const img = document.createElement('img');
+        img.className = 'image-preview-thumb';
+        img.src = src;
+        zone.replaceWith(img);
+      }
+      if (fileInput) fileInput.remove();
+    }
+
+    // Paste image anywhere on the page → create a new image block
+    document.addEventListener('paste', function (e) {
+      const items = Array.from(e.clipboardData ? e.clipboardData.items : []);
+      const imgItem = items.find(function (i) { return i.type.startsWith('image/'); });
+      if (!imgItem) return;
+      e.preventDefault();
+      const file = imgItem.getAsFile();
+      const id = 'b_' + Date.now() + '_paste';
+      const el = createBlockEl(id, 'image', {});
+      document.getElementById('blockEditor').appendChild(el);
+      readImageFile(file, id);
+    });
+
+    // ── Collect blocks from DOM ──
+
+    function collectBlocks() {
+      const result = [];
+      document.querySelectorAll('#blockEditor .block').forEach(function (el) {
+        const type = el.dataset.type;
+        const id = el.dataset.id;
+
+        if (type === 'text') {
+          const content = (el.querySelector('.block-content') || {}).value;
+          if (content && content.trim()) result.push({ id: id, type: type, content: content.trim() });
+
+        } else if (type === 'quote') {
+          const content = (el.querySelector('.quote-content') || {}).value;
+          const attribution = (el.querySelector('.quote-attr') || {}).value;
+          const url = (el.querySelector('.quote-url') || {}).value;
+          if (content && content.trim()) {
+            const b = { id: id, type: type, content: content.trim() };
+            if (attribution && attribution.trim()) b.attribution = attribution.trim();
+            if (url && url.trim()) b.url = url.trim();
+            result.push(b);
+          }
+
+        } else if (type === 'link') {
+          const url = (el.querySelector('.link-url') || {}).value;
+          const title = (el.querySelector('.link-title') || {}).value;
+          const description = (el.querySelector('.link-desc') || {}).value;
+          if (url && url.trim()) {
+            const b = { id: id, type: type, url: url.trim() };
+            if (title && title.trim()) b.title = title.trim();
+            if (description && description.trim()) b.description = description.trim();
+            result.push(b);
+          }
+
+        } else if (type === 'image') {
+          const src = el.dataset.src;
+          const caption = (el.querySelector('.image-caption') || {}).value;
+          if (src) {
+            const b = { id: id, type: type, src: src };
+            if (caption && caption.trim()) b.caption = caption.trim();
+            result.push(b);
+          }
+        }
+      });
+      return result;
+    }
+
+    // ── Submit ──
+
+    document.getElementById('postForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const title = document.getElementById('postTitle').value.trim();
+      const blocks = collectBlocks();
+
+      if (!blocks.length) {
+        setStatus('Add some content first.');
+        return;
+      }
+
+      if (editingId) {
+        // Update existing post
+        const idx = posts.findIndex(function (p) { return p.id === editingId; });
+        if (idx !== -1) {
+          posts[idx].blocks = blocks;
+          if (title) posts[idx].title = title;
+          else delete posts[idx].title;
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+        sessionStorage.setItem('flash', 'Updated.');
+        window.location.reload();
+        return;
+      }
+
+      // Create new post
+      const now = new Date();
+      const date = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0');
+
+      const post = { id: Date.now().toString(), date: date, blocks: blocks };
+      if (title) post.title = title;
+
+      posts.unshift(post);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+      resetForm();
+      setStatus('Posted.');
+      setTimeout(function () { setStatus(''); }, 2000);
+      renderPostList();
+    });
+
+    // ── Edit post ──
+
+    function editPost(id) {
+      const post = posts.find(function (p) { return p.id === id; });
+      if (!post) return;
+
+      editingId = id;
+
+      // Populate title
+      document.getElementById('postTitle').value = post.title || '';
+
+      // Populate blocks
+      document.getElementById('blockEditor').innerHTML = '';
+      (post.blocks || []).forEach(function (block) {
+        addBlock(block.type, block);
+      });
+
+      // Update UI
+      document.getElementById('submitBtn').textContent = 'Update';
+      document.getElementById('cancelBtn').style.display = '';
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+      resetForm();
+      setStatus('');
+    }
+
+    function resetForm() {
+      editingId = null;
+      document.getElementById('postTitle').value = '';
+      document.getElementById('blockEditor').innerHTML = '';
+      document.getElementById('submitBtn').textContent = 'Post';
+      document.getElementById('cancelBtn').style.display = 'none';
+      addBlock('text');
+    }
+
+    // ── Delete post ──
+
+    function deletePost(id) {
+      if (!confirm('Delete this post?')) return;
+      posts = posts.filter(function (p) { return p.id !== id; });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+      renderPostList();
+    }
+
+    // ── Render post list ──
+
+    function renderPostList() {
+      const list = document.getElementById('postList');
+      const items = document.getElementById('postItems');
+      const header = document.getElementById('postListHeader');
+
+      if (!posts.length) { list.style.display = 'none'; return; }
+
+      list.style.display = 'block';
+      header.textContent = posts.length + ' post' + (posts.length !== 1 ? 's' : '');
+
+      const sorted = posts.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
+
+      items.innerHTML = sorted.map(function (p) {
+        // Preview: title or first block content
+        let preview = p.title || '';
+        if (!preview && p.blocks && p.blocks.length) {
+          const first = p.blocks.find(function (b) { return b.content || b.url || b.src; });
+          if (first) preview = first.content || first.url || '[image]';
+        }
+        if (preview.length > 70) preview = preview.slice(0, 70) + '…';
+
+        const parts = p.date.split('-').map(Number);
+        const dateStr = new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric'
+        });
+
+        return '<div class="post-item">' +
+          '<span class="post-item-content">' + escHtml(preview) + '</span>' +
+          '<span class="post-item-meta">' + dateStr + '</span>' +
+          '<button class="post-item-delete" onclick="editPost(\'' + p.id + '\')">edit</button>' +
+          '<button class="post-item-delete" onclick="deletePost(\'' + p.id + '\')">delete</button>' +
+          '</div>';
+      }).join('');
+    }
+
+    // ── Helpers ──
+
+    function setStatus(msg) {
+      document.getElementById('formStatus').textContent = msg;
+    }
+
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = String(str);
+      return d.innerHTML;
+    }
+
+    boot();
+  </script>
+</body>
+</html>
