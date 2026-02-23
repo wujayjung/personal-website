@@ -5,61 +5,100 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="container">
 
     <div class="admin-header">
       <h1>Admin</h1>
-      <a href="index.html">← back to site</a>
+      <div style="display:flex;align-items:center;gap:16px">
+        <button class="btn btn-ghost" id="logoutBtn" style="display:none" onclick="doLogout()">Sign out</button>
+        <a href="index.html">← back to site</a>
+      </div>
     </div>
 
-    <form id="postForm" novalidate>
+    <!-- Login screen -->
+    <div id="loginScreen" style="display:none">
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn">Sign in</button>
+        <p class="form-status" id="loginStatus"></p>
+      </form>
+    </div>
 
-      <!-- Title -->
-      <div class="form-group">
-        <label class="form-label" for="postTitle">Title (optional)</label>
-        <input type="text" id="postTitle" placeholder="Give this post a title...">
+    <!-- Admin content (shown after login) -->
+    <div id="adminContent" style="display:none">
+
+      <form id="postForm" novalidate>
+
+        <!-- Title -->
+        <div class="form-group">
+          <label class="form-label" for="postTitle">Title (optional)</label>
+          <input type="text" id="postTitle" placeholder="Give this post a title...">
+        </div>
+
+        <!-- Block editor -->
+        <div class="block-editor" id="blockEditor"></div>
+
+        <!-- Add block toolbar -->
+        <div class="block-add-toolbar">
+          <span class="block-add-label">Add</span>
+          <button type="button" class="block-add-btn" onclick="addBlock('text')">Text</button>
+          <button type="button" class="block-add-btn" onclick="addBlock('quote')">Quote</button>
+          <button type="button" class="block-add-btn" onclick="addBlock('link')">Link</button>
+          <button type="button" class="block-add-btn" onclick="addBlock('image')">Image</button>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="submit" class="btn" id="submitBtn">Post</button>
+          <button type="button" class="btn btn-ghost" id="cancelBtn" style="display:none" onclick="cancelEdit()">Cancel</button>
+        </div>
+        <p class="form-status" id="formStatus"></p>
+
+      </form>
+
+      <!-- Existing posts -->
+      <div class="post-list" id="postList" style="display:none">
+        <p class="post-list-header" id="postListHeader"></p>
+        <div id="postItems"></div>
       </div>
 
-      <!-- Block editor -->
-      <div class="block-editor" id="blockEditor"></div>
-
-      <!-- Add block toolbar -->
-      <div class="block-add-toolbar">
-        <span class="block-add-label">Add</span>
-        <button type="button" class="block-add-btn" onclick="addBlock('text')">Text</button>
-        <button type="button" class="block-add-btn" onclick="addBlock('quote')">Quote</button>
-        <button type="button" class="block-add-btn" onclick="addBlock('link')">Link</button>
-        <button type="button" class="block-add-btn" onclick="addBlock('image')">Image</button>
-      </div>
-
-      <div style="display:flex;gap:10px;align-items:center">
-        <button type="submit" class="btn" id="submitBtn">Post</button>
-        <button type="button" class="btn btn-ghost" id="cancelBtn" style="display:none" onclick="cancelEdit()">Cancel</button>
-      </div>
-      <p class="form-status" id="formStatus"></p>
-
-    </form>
-
-    <!-- Existing posts -->
-    <div class="post-list" id="postList" style="display:none">
-      <p class="post-list-header" id="postListHeader"></p>
-      <div id="postItems"></div>
     </div>
 
   </div>
 
   <script>
-    const STORAGE_KEY = 'posts';
+    const SUPABASE_URL = 'https://zxdqlfusqmhdufsdyhzw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZHFsZnVzcW1oZHVmc2R5aHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDUyMzksImV4cCI6MjA4NzM4MTIzOX0.qItSdfE15aQcG4D6gYfoJq_2-tfHqd7ltVjV_V7qkZw';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     let posts = [];
     let editingId = null;
 
     // ── Boot ──
 
-    function boot() {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      posts = saved ? JSON.parse(saved) : [];
+    async function boot() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) {
+        document.getElementById('loginScreen').style.display = '';
+        return;
+      }
+      await showAdmin();
+    }
+
+    async function showAdmin() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('adminContent').style.display = '';
+      document.getElementById('logoutBtn').style.display = '';
+      await loadPostsFromDB();
       addBlock('text');
       renderPostList();
 
@@ -69,6 +108,34 @@
         setStatus(flash);
         setTimeout(function () { setStatus(''); }, 2500);
       }
+    }
+
+    async function loadPostsFromDB() {
+      const { data, error } = await sb.from('posts').select('*').order('date', { ascending: false });
+      if (error) { console.error(error); return; }
+      posts = data || [];
+    }
+
+    // ── Login / Logout ──
+
+    document.getElementById('loginForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const status = document.getElementById('loginStatus');
+      status.textContent = 'Signing in…';
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) { status.textContent = error.message; return; }
+      status.textContent = '';
+      await showAdmin();
+    });
+
+    async function doLogout() {
+      await sb.auth.signOut();
+      posts = [];
+      document.getElementById('loginScreen').style.display = '';
+      document.getElementById('adminContent').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'none';
     }
 
     // ── Block creation ──
@@ -287,7 +354,7 @@
 
     // ── Submit ──
 
-    document.getElementById('postForm').addEventListener('submit', function (e) {
+    document.getElementById('postForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
       const title = document.getElementById('postTitle').value.trim();
@@ -299,20 +366,16 @@
       }
 
       if (editingId) {
-        // Update existing post
-        const idx = posts.findIndex(function (p) { return p.id === editingId; });
-        if (idx !== -1) {
-          posts[idx].blocks = blocks;
-          if (title) posts[idx].title = title;
-          else delete posts[idx].title;
-        }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+        const { error } = await sb.from('posts').update({
+          title: title || null,
+          blocks: blocks,
+        }).eq('id', editingId);
+        if (error) { setStatus('Error: ' + error.message); return; }
         sessionStorage.setItem('flash', 'Updated.');
         window.location.reload();
         return;
       }
 
-      // Create new post
       const now = new Date();
       const date = now.getFullYear() + '-' +
         String(now.getMonth() + 1).padStart(2, '0') + '-' +
@@ -321,8 +384,10 @@
       const post = { id: Date.now().toString(), date: date, blocks: blocks };
       if (title) post.title = title;
 
-      posts.unshift(post);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+      const { error } = await sb.from('posts').insert(post);
+      if (error) { setStatus('Error: ' + error.message); return; }
+
+      await loadPostsFromDB();
       resetForm();
       setStatus('Posted.');
       setTimeout(function () { setStatus(''); }, 2000);
@@ -369,10 +434,11 @@
 
     // ── Delete post ──
 
-    function deletePost(id) {
+    async function deletePost(id) {
       if (!confirm('Delete this post?')) return;
+      const { error } = await sb.from('posts').delete().eq('id', id);
+      if (error) { alert('Error: ' + error.message); return; }
       posts = posts.filter(function (p) { return p.id !== id; });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
       renderPostList();
     }
 

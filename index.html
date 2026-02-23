@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wujay Jung</title>
   <link rel="stylesheet" href="style.css">
-  <script src="posts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="container">
@@ -23,16 +23,14 @@
   </div>
 
   <script>
-    function loadPosts() {
-      // Read from localStorage (written by admin page)
-      const saved = localStorage.getItem('posts');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-      // Fall back to posts.js static data (for deployed site)
-      return (typeof POSTS !== 'undefined') ? POSTS : [];
+    const SUPABASE_URL = 'https://zxdqlfusqmhdufsdyhzw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZHFsZnVzcW1oZHVmc2R5aHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDUyMzksImV4cCI6MjA4NzM4MTIzOX0.qItSdfE15aQcG4D6gYfoJq_2-tfHqd7ltVjV_V7qkZw';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function loadPosts() {
+      const { data, error } = await sb.from('posts').select('*');
+      if (error) { console.error(error); return []; }
+      return data || [];
     }
 
     function renderPosts(posts, feed) {
@@ -133,7 +131,7 @@
     }
 
     const feed = document.getElementById('feed');
-    renderPosts(loadPosts(), feed);
+    loadPosts().then(function(posts) { renderPosts(posts, feed); });
   </script>
 </body>
 </html>
