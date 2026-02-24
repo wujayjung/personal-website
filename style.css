@@ -35,7 +35,7 @@ a:hover {
 /* ── Layout ── */
 
 .container {
-  max-width: 600px;
+  max-width: 720px;
   margin: 0 auto;
   padding: 96px 24px 128px;
 }
@@ -60,26 +60,38 @@ header .tagline {
   font-family: var(--sans);
 }
 
-header nav {
-  margin-top: 20px;
-  font-size: 0.8125rem;
-  font-family: var(--sans);
-}
-
-header nav a {
-  color: var(--muted);
-  text-decoration: none;
-  margin-right: 16px;
-}
-
-header nav a:hover {
+.admin-link {
+  position: fixed;
+  top: 24px;
+  right: 28px;
   color: var(--text);
+  text-decoration: none;
+  line-height: 1;
+}
+
+.admin-link rect {
+  fill: none;
+  transition: fill 0.15s;
+}
+
+.admin-link:hover {
+  color: var(--text);
+}
+
+.admin-link:hover rect {
+  fill: currentColor;
 }
 
 /* ── Post Feed ── */
 
 .post {
-  margin-bottom: 60px;
+  margin-bottom: 0;
+  padding-bottom: 48px;
+}
+
+.post + .post {
+  padding-top: 44px;
+  border-top: 1px solid var(--border);
 }
 
 .post-date {
@@ -468,18 +480,20 @@ textarea {
 }
 
 .post-content {
-  font-size: 0.9rem;
-  color: #555;
+  font-size: 0.85rem;
+  font-weight: 300;
+  color: #5e5e5e;
   line-height: 1.75;
 }
 
 .post blockquote {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 300;
   color: #555;
 }
 
 .post-block + .post-block {
-  margin-top: 14px;
+  margin-top: 30px;
 }
 
 .post-image {
