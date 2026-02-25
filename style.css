@@ -164,7 +164,7 @@ header .tagline {
   color: var(--muted);
   text-decoration: none;
   display: inline-block;
-  margin-top: 8px;
+  margin-bottom: 10px;
 }
 
 .admin-header a:hover {
@@ -189,6 +189,7 @@ header .tagline {
 .form-group {
   margin-bottom: 28px;
 }
+
 
 .form-label {
   display: block;
@@ -531,6 +532,275 @@ textarea {
   border: none;
 }
 
+/* ── Text format toolbar (admin) ── */
+
+.text-format-toolbar {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.fmt-btn {
+  font-size: 0.72rem;
+  font-family: var(--sans);
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: 4px 13px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+
+.fmt-btn:last-child {
+  border-right: none;
+}
+
+.fmt-btn:hover {
+  background: #f0f0f0;
+  color: var(--text);
+}
+
+.fmt-btn.active {
+  background: var(--text);
+  color: #fff;
+}
+
+/* ── Contenteditable text block (admin) ── */
+
+div.block-content[contenteditable] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-family: var(--sans);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  outline: none;
+  color: var(--text);
+  background: #fff;
+  transition: border-color 0.15s;
+  min-height: 100px;
+  cursor: text;
+  line-height: 1.65;
+  box-sizing: border-box;
+  margin-top: 6px;
+}
+
+div.block-content[contenteditable]:focus {
+  border-color: #aaa;
+}
+
+div.block-content[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #bbb;
+  pointer-events: none;
+  display: block;
+}
+
+div.block-content[contenteditable] p {
+  margin: 0;
+}
+
+div.block-content[contenteditable] p + p,
+div.block-content[contenteditable] p + ul,
+div.block-content[contenteditable] p + ol,
+div.block-content[contenteditable] ul + p,
+div.block-content[contenteditable] ol + p {
+  margin-top: 4px;
+}
+
+div.block-content[contenteditable] ul,
+div.block-content[contenteditable] ol {
+  padding-left: 1.4em;
+  margin: 0;
+  font-size: inherit;
+}
+
+div.block-content[contenteditable] li {
+  margin-bottom: 1px;
+}
+
+div.block-content[contenteditable] ul.list-dash {
+  list-style: none;
+  padding-left: 1.3em;
+}
+
+div.block-content[contenteditable] ul.list-dash > li::before {
+  content: '—';
+  margin-right: 0.45em;
+  margin-left: -1.3em;
+}
+
+/* ── Lists in post feed ── */
+
+.post-content > p {
+  margin: 0;
+}
+
+.post-content > p + p,
+.post-content > p + ul,
+.post-content > p + ol,
+.post-content > ul + p,
+.post-content > ol + p,
+.post-content > ul + ol,
+.post-content > ol + ul {
+  margin-top: 10px;
+}
+
+.post ul,
+.post ol {
+  padding-left: 1.4em;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 300;
+  line-height: 1.75;
+}
+
+.post li {
+  margin-bottom: 2px;
+}
+
+.post li:last-child {
+  margin-bottom: 0;
+}
+
+.post li > ul,
+.post li > ol {
+  margin-top: 2px;
+  margin-bottom: 0;
+}
+
+/* Dash list: replace default disc with em dash */
+.post ul.list-dash {
+  list-style: none;
+  padding-left: 1.3em;
+}
+
+.post ul.list-dash > li::before {
+  content: '—';
+  margin-right: 0.45em;
+  margin-left: -1.3em;
+  color: inherit;
+}
+
+/* ── Private posts ── */
+
+.post--private .post-title,
+.post--private .post-content,
+.post--private blockquote {
+  color: #aaa;
+}
+
+.private-badge {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-family: var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* ── Tags ── */
+
+.post-tags {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  font-size: 0.78rem;
+  font-family: var(--sans);
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+
+.tag:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tag-filter-bar {
+  font-size: 0.8rem;
+  font-family: var(--sans);
+  color: var(--muted);
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tag-filter-bar button {
+  font-size: 0.78rem;
+  font-family: var(--sans);
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tag-filter-bar button:hover {
+  color: var(--text);
+}
+
+/* Admin: private toggle row */
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.form-group-inline .form-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.form-group-inline input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Admin: private indicator in post list */
+.post-item-private {
+  font-size: 0.68rem;
+  font-family: var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a07020;
+  white-space: nowrap;
+}
+
+/* Admin: tags in post list */
+.post-item-tags {
+  font-size: 0.72rem;
+  font-family: var(--sans);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 640px) {
@@ -541,4 +811,5 @@ textarea {
   .block-row {
     grid-template-columns: 1fr;
   }
+
 }

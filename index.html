@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wujay Jung</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -20,6 +20,11 @@
       <p class="tagline">A student of the startup game.</p>
     </header>
 
+    <div id="tagFilterBar" style="display:none" class="tag-filter-bar">
+      <span id="tagFilterLabel"></span>
+      <button onclick="clearTagFilter()">clear</button>
+    </div>
+
     <main id="feed">
       <p class="empty-state">Nothing here yet.</p>
     </main>
@@ -30,25 +35,69 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZHFsZnVzcW1oZHVmc2R5aHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDUyMzksImV4cCI6MjA4NzM4MTIzOX0.qItSdfE15aQcG4D6gYfoJq_2-tfHqd7ltVjV_V7qkZw';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    async function loadPosts() {
+    let allPosts = [];
+    let isLoggedIn = false;
+    let activeTag = null;
+
+    async function boot() {
+      const { data: { session } } = await sb.auth.getSession();
+      isLoggedIn = !!session;
+
       const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
-      if (error) { console.error(error); return []; }
-      return data || [];
+      if (error) { console.error(error); return; }
+
+      allPosts = (data || []).filter(function(p) {
+        // Hide private posts from non-logged-in visitors
+        return isLoggedIn || !p.is_private;
+      });
+
+      renderFeed();
     }
 
-    function renderPosts(posts, feed) {
+    function renderFeed() {
+      const feed = document.getElementById('feed');
+      let posts = allPosts;
+
+      if (activeTag) {
+        posts = posts.filter(function(p) {
+          return p.tags && p.tags.includes(activeTag);
+        });
+        document.getElementById('tagFilterBar').style.display = '';
+        document.getElementById('tagFilterLabel').textContent = '#' + activeTag;
+      } else {
+        document.getElementById('tagFilterBar').style.display = 'none';
+      }
+
       if (!posts.length) {
-        feed.innerHTML = '<p class="empty-state">Nothing here yet.</p>';
+        feed.innerHTML = activeTag
+          ? '<p class="empty-state">No posts tagged #' + escHtml(activeTag) + '.</p>'
+          : '<p class="empty-state">Nothing here yet.</p>';
         return;
       }
 
       feed.innerHTML = posts.map(renderPost).join('');
     }
 
+    function filterByTag(tag) {
+      activeTag = tag;
+      renderFeed();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function clearTagFilter() {
+      activeTag = null;
+      renderFeed();
+    }
+
     function renderPost(post) {
       const ts = post.created_at || post.date;
       const date = formatDateTime(ts);
+      const isPrivate = isLoggedIn && post.is_private;
       let body = '';
+
+      if (isPrivate) {
+        body += '<span class="private-badge">private</span>';
+      }
 
       if (post.title) {
         body += `<p class="post-title">${escHtml(post.title)}</p>`;
@@ -58,15 +107,101 @@
         body += post.blocks.map(renderBlock).join('');
       }
 
-      return `<article class="post">
+      if (post.tags && post.tags.length) {
+        body += '<div class="post-tags">' +
+          post.tags.map(function(tag) {
+            return '<button class="tag" onclick="filterByTag(\'' + escHtml(tag) + '\')">#' + escHtml(tag) + '</button>';
+          }).join('') +
+          '</div>';
+      }
+
+      const cls = isPrivate ? 'post post--private' : 'post';
+      return `<article class="${cls}">
   <time class="post-date" datetime="${escHtml(ts)}">${date}</time>
   ${body}
 </article>`;
     }
 
+    // ── Text content renderer (handles plain text + bullet/dash/numbered lists) ──
+
+    function getLineListInfo(line) {
+      const t = line.trimStart();
+      if (!t) return null;
+      const level = Math.floor((line.length - t.length) / 2);
+      if (t.startsWith('• '))                        return { tag: 'ul', cls: '',          content: t.slice(2),            level };
+      if (t.startsWith('- ') && t.length > 2)        return { tag: 'ul', cls: 'list-dash', content: t.slice(2),            level };
+      const m = t.match(/^\d+\. ([\s\S]*)/);
+      if (m)                                          return { tag: 'ol', cls: '',          content: m[1],                  level };
+      return null;
+    }
+
+    function renderNestedList(items, base) {
+      const first = items.find(function(it) { return it.level === base; });
+      if (!first) return '';
+      const open = '<' + first.tag + (first.cls ? ' class="' + first.cls + '"' : '') + '>';
+      const close = '</' + first.tag + '>';
+      let html = open;
+      let j = 0;
+      while (j < items.length) {
+        const item = items[j];
+        if (item.level !== base) { j++; continue; }
+        const nested = [];
+        let k = j + 1;
+        while (k < items.length && items[k].level > base) { nested.push(items[k]); k++; }
+        html += '<li>' + escHtml(item.content) + (nested.length ? renderNestedList(nested, base + 1) : '') + '</li>';
+        j = k;
+      }
+      return html + close;
+    }
+
+    function renderTextContent(raw) {
+      if (!raw) return '';
+      const lines = raw.split('\n');
+      const segs = [];
+      let textBuf = [];
+
+      function flushText() {
+        if (!textBuf.length) return;
+        segs.push({ type: 'text', content: textBuf.join('\n') });
+        textBuf = [];
+      }
+
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        const info = getLineListInfo(line);
+        if (info) {
+          flushText();
+          const items = [];
+          while (i < lines.length) {
+            const li = getLineListInfo(lines[i]);
+            if (li) { items.push(li); i++; }
+            else if (!lines[i].trim()) { i++; break; }
+            else break;
+          }
+          if (items.length) {
+            const minLv = Math.min.apply(null, items.map(function(it) { return it.level; }));
+            segs.push({ type: 'list', items: items.map(function(it) { return Object.assign({}, it, { level: it.level - minLv }); }) });
+          }
+        } else if (!line.trim()) {
+          flushText();
+          i++;
+        } else {
+          textBuf.push(line);
+          i++;
+        }
+      }
+      flushText();
+
+      return segs.map(function(seg) {
+        if (seg.type === 'list') return renderNestedList(seg.items, 0);
+        return '<p>' + escHtml(seg.content).replace(/\n/g, '<br>') + '</p>';
+      }).join('');
+    }
+
     function renderBlock(block) {
       if (block.type === 'text') {
-        return `<p class="post-content post-block">${escHtml(block.content).replace(/\n/g, '<br>')}</p>`;
+        return '<div class="post-content post-block">' + renderTextContent(block.content) + '</div>';
 
       } else if (block.type === 'quote') {
         let html = `<blockquote class="post-block">${escHtml(block.content)}</blockquote>`;
@@ -130,8 +265,7 @@
       return d.innerHTML;
     }
 
-    const feed = document.getElementById('feed');
-    loadPosts().then(function(posts) { renderPosts(posts, feed); });
+    boot();
   </script>
 </body>
 </html>

@@ -11,11 +11,9 @@
   <div class="container">
 
     <div class="admin-header">
+      <a href="index.html">← back to site</a>
       <h1>Admin</h1>
-      <div style="display:flex;align-items:center;gap:16px">
-        <button class="btn btn-ghost" id="logoutBtn" style="display:none" onclick="doLogout()">Sign out</button>
-        <a href="index.html">← back to site</a>
-      </div>
+      <button class="btn btn-ghost" id="logoutBtn" style="display:none" onclick="doLogout()">Sign out</button>
     </div>
 
     <!-- Login screen -->
@@ -43,6 +41,20 @@
         <div class="form-group">
           <label class="form-label" for="postTitle">Title (optional)</label>
           <input type="text" id="postTitle" placeholder="Give this post a title...">
+        </div>
+
+        <!-- Tags -->
+        <div class="form-group">
+          <label class="form-label" for="postTags">Tags (optional, comma-separated)</label>
+          <input type="text" id="postTags" placeholder="startup, notes, reading">
+        </div>
+
+        <!-- Private toggle -->
+        <div class="form-group-inline">
+          <label class="form-label" for="postPrivate">
+            <input type="checkbox" id="postPrivate">
+            Private — only visible when you're logged in
+          </label>
         </div>
 
         <!-- Block editor -->
@@ -172,9 +184,28 @@
 
       // Body
       if (type === 'text') {
-        const ta = inputEl('textarea', 'block-content', 'Write something...');
-        ta.value = data.content || '';
-        div.appendChild(ta);
+        const toolbar = document.createElement('div');
+        toolbar.className = 'text-format-toolbar';
+        toolbar.innerHTML =
+          '<button type="button" class="fmt-btn" data-fmt="bullet" title="Bullet list" onmousedown="event.preventDefault()" onclick="applyListFormat(\'' + id + '\', \'bullet\')">•</button>' +
+          '<button type="button" class="fmt-btn" data-fmt="dash" title="Dash list" onmousedown="event.preventDefault()" onclick="applyListFormat(\'' + id + '\', \'dash\')">—</button>' +
+          '<button type="button" class="fmt-btn" data-fmt="number" title="Numbered list" onmousedown="event.preventDefault()" onclick="applyListFormat(\'' + id + '\', \'number\')">1.</button>';
+        div.appendChild(toolbar);
+
+        const ce = document.createElement('div');
+        ce.className = 'block-content';
+        ce.contentEditable = 'true';
+        ce.setAttribute('data-placeholder', 'Write something...');
+        ce.innerHTML = data.content ? deserializeToHTML(data.content) : '<p><br></p>';
+        ce.addEventListener('keydown', function(e) { handleCEKeydown(e, id); });
+        ce.addEventListener('keyup',  function()  { updateFormatButtons(ce, id); });
+        ce.addEventListener('click',  function()  { updateFormatButtons(ce, id); });
+        ce.addEventListener('paste', function(e) {
+          e.preventDefault();
+          var text = (e.clipboardData || window.clipboardData).getData('text/plain');
+          if (text) document.execCommand('insertText', false, text);
+        });
+        div.appendChild(ce);
 
       } else if (type === 'quote') {
         const ta = inputEl('textarea', 'quote-content', 'The quote...');
@@ -314,8 +345,12 @@
         const id = el.dataset.id;
 
         if (type === 'text') {
-          const content = (el.querySelector('.block-content') || {}).value;
-          if (content && content.trim()) result.push({ id: id, type: type, content: content.trim() });
+          const elem = el.querySelector('.block-content');
+          if (!elem) return;
+          const content = elem.getAttribute('contenteditable') === 'true'
+            ? serializeFromCE(elem).trim()
+            : (elem.value || '').trim();
+          if (content) result.push({ id: id, type: type, content: content });
 
         } else if (type === 'quote') {
           const content = (el.querySelector('.quote-content') || {}).value;
@@ -359,6 +394,8 @@
 
       const title = document.getElementById('postTitle').value.trim();
       const blocks = collectBlocks();
+      const tags = parseTags(document.getElementById('postTags').value);
+      const isPrivate = document.getElementById('postPrivate').checked;
 
       if (!blocks.length) {
         setStatus('Add some content first.');
@@ -369,6 +406,8 @@
         const { error } = await sb.from('posts').update({
           title: title || null,
           blocks: blocks,
+          tags: tags,
+          is_private: isPrivate,
         }).eq('id', editingId);
         if (error) { setStatus('Error: ' + error.message); return; }
         sessionStorage.setItem('flash', 'Updated.');
@@ -381,7 +420,7 @@
         String(now.getMonth() + 1).padStart(2, '0') + '-' +
         String(now.getDate()).padStart(2, '0');
 
-      const post = { id: Date.now().toString(), date: date, blocks: blocks };
+      const post = { id: Date.now().toString(), date: date, blocks: blocks, tags: tags, is_private: isPrivate };
       if (title) post.title = title;
 
       const { error } = await sb.from('posts').insert(post);
@@ -405,6 +444,12 @@
       // Populate title
       document.getElementById('postTitle').value = post.title || '';
 
+      // Populate tags
+      document.getElementById('postTags').value = (post.tags || []).join(', ');
+
+      // Populate private toggle
+      document.getElementById('postPrivate').checked = !!post.is_private;
+
       // Populate blocks
       document.getElementById('blockEditor').innerHTML = '';
       (post.blocks || []).forEach(function (block) {
@@ -426,6 +471,8 @@
     function resetForm() {
       editingId = null;
       document.getElementById('postTitle').value = '';
+      document.getElementById('postTags').value = '';
+      document.getElementById('postPrivate').checked = false;
       document.getElementById('blockEditor').innerHTML = '';
       document.getElementById('submitBtn').textContent = 'Post';
       document.getElementById('cancelBtn').style.display = 'none';
@@ -470,8 +517,13 @@
           month: 'short', day: 'numeric', year: 'numeric'
         });
 
+        const tagsStr = (p.tags && p.tags.length) ? p.tags.map(function(t) { return '#' + t; }).join(' ') : '';
+        const privateBadge = p.is_private ? '<span class="post-item-private">private</span>' : '';
+
         return '<div class="post-item">' +
           '<span class="post-item-content">' + escHtml(preview) + '</span>' +
+          (tagsStr ? '<span class="post-item-tags">' + escHtml(tagsStr) + '</span>' : '') +
+          privateBadge +
           '<span class="post-item-meta">' + dateStr + '</span>' +
           '<button class="post-item-delete" onclick="editPost(\'' + p.id + '\')">edit</button>' +
           '<button class="post-item-delete" onclick="deletePost(\'' + p.id + '\')">delete</button>' +
@@ -479,7 +531,265 @@
       }).join('');
     }
 
+    // ── List formatting (contenteditable) ──
+
+    function deserializeToHTML(text) {
+      if (!text) return '<p><br></p>';
+      var lines = text.split('\n');
+      var segs = [], textBuf = [], i = 0;
+
+      function getInfo(line) {
+        var t = line.trimStart();
+        if (!t) return null;
+        var indent = Math.floor((line.length - t.length) / 2);
+        if (t.startsWith('• ')) return { type: 'bullet', content: t.slice(2), indent: indent };
+        if (t.startsWith('- ') && t.length > 2) return { type: 'dash', content: t.slice(2), indent: indent };
+        var m = t.match(/^\d+\. ([\s\S]*)/);
+        if (m) return { type: 'number', content: m[1], indent: indent };
+        return null;
+      }
+
+      while (i < lines.length) {
+        var line = lines[i];
+        var info = getInfo(line);
+        if (info) {
+          if (textBuf.length) { segs.push({ type: 'text', lines: textBuf.slice() }); textBuf = []; }
+          var items = [];
+          while (i < lines.length) {
+            var li = getInfo(lines[i]);
+            if (li) { items.push(li); i++; }
+            else if (!lines[i].trim()) { i++; break; }
+            else break;
+          }
+          if (items.length) segs.push({ type: 'list', items: items });
+        } else if (!line.trim()) {
+          if (textBuf.length) { segs.push({ type: 'text', lines: textBuf.slice() }); textBuf = []; }
+          i++;
+        } else {
+          textBuf.push(line); i++;
+        }
+      }
+      if (textBuf.length) segs.push({ type: 'text', lines: textBuf });
+
+      return segs.map(function(seg) {
+        if (seg.type === 'text') {
+          return seg.lines.map(function(l) { return '<p>' + escHtml(l) + '</p>'; }).join('');
+        }
+        var min = Math.min.apply(null, seg.items.map(function(it) { return it.indent; }));
+        var norm = seg.items.map(function(it) { return Object.assign({}, it, { indent: it.indent - min }); });
+        return buildHTMLList(norm, 0);
+      }).join('');
+    }
+
+    function buildHTMLList(items, base) {
+      var first = items.find(function(it) { return it.indent === base; });
+      if (!first) return '';
+      var tag = first.type === 'number' ? 'ol' : 'ul';
+      var cls = first.type === 'dash' ? ' class="list-dash"' : '';
+      var html = '<' + tag + cls + '>';
+      var j = 0;
+      while (j < items.length) {
+        var item = items[j];
+        if (item.indent !== base) { j++; continue; }
+        var nested = []; var k = j + 1;
+        while (k < items.length && items[k].indent > base) { nested.push(items[k]); k++; }
+        html += '<li>' + escHtml(item.content) + (nested.length ? buildHTMLList(nested, base + 1) : '') + '</li>';
+        j = k;
+      }
+      return html + '</' + tag + '>';
+    }
+
+    function serializeFromCE(ce) {
+      function serNode(node, indent) {
+        if (node.nodeType === 3) return node.textContent;
+        if (node.nodeName === 'BR') return node.nextSibling ? '\n' : '';
+        var name = node.nodeName;
+        if (name === 'P' || name === 'DIV') {
+          var content = '';
+          Array.from(node.childNodes).forEach(function(c) { content += serNode(c, ''); });
+          return content.replace(/\n$/, '') + '\n';
+        }
+        if (name === 'UL' || name === 'OL') {
+          var isDash = node.classList.contains('list-dash');
+          var isOL = name === 'OL';
+          var num = 1, result = '';
+          Array.from(node.children).forEach(function(li) {
+            if (li.nodeName !== 'LI') return;
+            var liText = '', nested = '';
+            Array.from(li.childNodes).forEach(function(c) {
+              if (c.nodeName === 'UL' || c.nodeName === 'OL') {
+                nested += serNode(c, indent + '  ');
+              } else {
+                liText += serNode(c, '');
+              }
+            });
+            var pfx = isDash ? indent + '- ' : isOL ? indent + (num++) + '. ' : indent + '• ';
+            result += pfx + liText.trim() + '\n' + nested;
+          });
+          return result;
+        }
+        var r = '';
+        Array.from(node.childNodes).forEach(function(c) { r += serNode(c, indent); });
+        return r;
+      }
+      var text = '';
+      Array.from(ce.childNodes).forEach(function(node) { text += serNode(node, ''); });
+      return text.replace(/\n+$/, '');
+    }
+
+    function makeList(format) {
+      var list = document.createElement(format === 'number' ? 'ol' : 'ul');
+      if (format === 'dash') list.className = 'list-dash';
+      return list;
+    }
+
+    function setCursorEnd(el) {
+      var range = document.createRange();
+      var sel = window.getSelection();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    function applyListFormat(blockId, format) {
+      var block = document.querySelector('[data-id="' + blockId + '"]');
+      var ce = block.querySelector('.block-content[contenteditable]');
+      if (!ce) return;
+      ce.focus();
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+
+      var anchor = sel.anchorNode;
+      var container = anchor ? (anchor.nodeType === 3 ? anchor.parentElement : anchor) : ce;
+      var li = container.closest && container.closest('li');
+
+      if (li) {
+        var parentList = li.parentElement;
+        var curFmt = parentList.nodeName === 'OL' ? 'number'
+          : parentList.classList.contains('list-dash') ? 'dash' : 'bullet';
+
+        if (curFmt === format) {
+          // Toggle off: convert li to <p>
+          var p = document.createElement('p');
+          var frag = document.createDocumentFragment();
+          Array.from(li.childNodes).forEach(function(c) {
+            if (c.nodeName !== 'UL' && c.nodeName !== 'OL') frag.appendChild(c.cloneNode(true));
+          });
+          p.appendChild(frag);
+          if (!p.textContent && !p.querySelector('br')) p.innerHTML = '<br>';
+          parentList.parentNode.insertBefore(p, parentList.nextSibling);
+          li.remove();
+          if (!parentList.children.length) parentList.remove();
+          setCursorEnd(p);
+        } else {
+          // Change list type
+          var newList = makeList(format);
+          Array.from(parentList.children).forEach(function(item) {
+            newList.appendChild(item.cloneNode(true));
+          });
+          parentList.parentNode.replaceChild(newList, parentList);
+          var firstLi = newList.querySelector('li');
+          if (firstLi) setCursorEnd(firstLi);
+        }
+      } else {
+        // Find direct child of ce containing cursor
+        var node = container;
+        while (node && node.parentElement !== ce) node = node.parentElement;
+        var newList2 = makeList(format);
+        var newLi = document.createElement('li');
+        if (node && node !== ce) {
+          while (node.firstChild) newLi.appendChild(node.firstChild);
+          if (!newLi.firstChild) newLi.innerHTML = '<br>';
+          newList2.appendChild(newLi);
+          ce.replaceChild(newList2, node);
+        } else {
+          newLi.innerHTML = '<br>';
+          newList2.appendChild(newLi);
+          ce.appendChild(newList2);
+        }
+        setCursorEnd(newLi);
+      }
+      updateFormatButtons(ce, blockId);
+    }
+
+    function handleCEKeydown(e, blockId) {
+      var ce = e.currentTarget;
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      var anchor = sel.anchorNode;
+      var container = anchor ? (anchor.nodeType === 3 ? anchor.parentElement : anchor) : null;
+      var li = container && container.closest && container.closest('li');
+
+      if (e.key === 'Enter' && li && !e.shiftKey) {
+        if (!li.textContent.trim()) {
+          e.preventDefault();
+          var parentList = li.parentElement;
+          var p = document.createElement('p');
+          p.innerHTML = '<br>';
+          parentList.parentNode.insertBefore(p, parentList.nextSibling);
+          li.remove();
+          if (!parentList.children.length) parentList.remove();
+          var range = document.createRange();
+          range.setStart(p, 0);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        updateFormatButtons(ce, blockId);
+      }
+
+      if (e.key === 'Tab' && li) {
+        e.preventDefault();
+        var parentList2 = li.parentElement;
+        if (e.shiftKey) {
+          var grandParentLi = parentList2.parentElement;
+          if (grandParentLi && grandParentLi.nodeName === 'LI') {
+            grandParentLi.parentElement.insertBefore(li, grandParentLi.nextSibling);
+            if (!parentList2.children.length) parentList2.remove();
+            setCursorEnd(li);
+          }
+        } else {
+          var prevLi = li.previousElementSibling;
+          if (prevLi) {
+            var nested = prevLi.querySelector(':scope > ul, :scope > ol');
+            if (!nested) {
+              nested = makeList(parentList2.nodeName === 'OL' ? 'number'
+                : parentList2.classList.contains('list-dash') ? 'dash' : 'bullet');
+              prevLi.appendChild(nested);
+            }
+            nested.appendChild(li);
+            setCursorEnd(li);
+          }
+        }
+      }
+    }
+
+    function updateFormatButtons(ce, blockId) {
+      var block = document.querySelector('[data-id="' + blockId + '"]');
+      if (!block) return;
+      var sel = window.getSelection();
+      var active = null;
+      if (sel && sel.rangeCount) {
+        var anchor = sel.anchorNode;
+        var container = anchor ? (anchor.nodeType === 3 ? anchor.parentElement : anchor) : null;
+        var li = container && container.closest && container.closest('li');
+        if (li) {
+          var pl = li.parentElement;
+          active = pl.nodeName === 'OL' ? 'number'
+            : pl.classList.contains('list-dash') ? 'dash' : 'bullet';
+        }
+      }
+      block.querySelectorAll('.fmt-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.fmt === active);
+      });
+    }
+
     // ── Helpers ──
+
+    function parseTags(str) {
+      return str.split(',').map(function(t) { return t.trim().toLowerCase().replace(/^#+/, ''); }).filter(Boolean);
+    }
 
     function setStatus(msg) {
       document.getElementById('formStatus').textContent = msg;
