@@ -83,6 +83,18 @@
         <div id="postItems"></div>
       </div>
 
+      <!-- Writing ideas -->
+      <div class="ideas-section">
+        <p class="post-list-header">Writing ideas</p>
+        <form id="ideaForm" novalidate>
+          <div class="idea-input-row">
+            <input type="text" id="ideaInput" placeholder="Something to write about...">
+            <button type="submit" class="btn btn-ghost">Add</button>
+          </div>
+        </form>
+        <div id="ideaItems"></div>
+      </div>
+
     </div>
 
   </div>
@@ -94,6 +106,7 @@
 
     let posts = [];
     let editingId = null;
+    let ideas = [];
 
     // ── Boot ──
 
@@ -111,8 +124,10 @@
       document.getElementById('adminContent').style.display = '';
       document.getElementById('logoutBtn').style.display = '';
       await loadPostsFromDB();
+      await loadIdeasFromDB();
       addBlock('text');
       renderPostList();
+      renderIdeas();
 
       const flash = sessionStorage.getItem('flash');
       if (flash) {
@@ -783,6 +798,48 @@
       block.querySelectorAll('.fmt-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.dataset.fmt === active);
       });
+    }
+
+    // ── Writing ideas ──
+
+    async function loadIdeasFromDB() {
+      const { data, error } = await sb.from('topic_ideas').select('*').order('created_at', { ascending: true });
+      if (error) { console.error(error); return; }
+      ideas = data || [];
+    }
+
+    function renderIdeas() {
+      const container = document.getElementById('ideaItems');
+      if (!ideas.length) {
+        container.innerHTML = '';
+        return;
+      }
+      container.innerHTML = ideas.map(function (idea) {
+        return '<div class="idea-item">' +
+          '<span class="idea-item-text">' + escHtml(idea.text) + '</span>' +
+          '<button class="post-item-delete" onclick="deleteIdea(' + idea.id + ')">delete</button>' +
+          '</div>';
+      }).join('');
+    }
+
+    document.getElementById('ideaForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const input = document.getElementById('ideaInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const { data, error } = await sb.from('topic_ideas').insert({ text: text }).select().single();
+      if (error) { console.error(error); return; }
+      ideas.push(data);
+      renderIdeas();
+      input.value = '';
+      input.focus();
+    });
+
+    async function deleteIdea(id) {
+      const { error } = await sb.from('topic_ideas').delete().eq('id', id);
+      if (error) { console.error(error); return; }
+      ideas = ideas.filter(function (i) { return i.id !== id; });
+      renderIdeas();
     }
 
     // ── Helpers ──
