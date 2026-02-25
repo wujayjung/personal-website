@@ -43,13 +43,16 @@
       const { data: { session } } = await sb.auth.getSession();
       isLoggedIn = !!session;
 
-      const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
+      let query = sb.from('posts').select('*').order('created_at', { ascending: false });
+      if (!isLoggedIn) {
+        // Filter at the DB level so private post data is never sent to the browser
+        query = query.or('is_private.is.null,is_private.eq.false');
+      }
+
+      const { data, error } = await query;
       if (error) { console.error(error); return; }
 
-      allPosts = (data || []).filter(function(p) {
-        // Hide private posts from non-logged-in visitors
-        return isLoggedIn || !p.is_private;
-      });
+      allPosts = data || [];
 
       renderFeed();
     }
