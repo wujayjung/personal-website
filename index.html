@@ -266,8 +266,8 @@
     }
 
     function getTwitterTweetUrl(url) {
-      const m = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/);
-      return m ? 'https://' + m[0] : null;
+      const m = url.match(/(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)/);
+      return m ? 'https://twitter.com/' + m[1] + '/status/' + m[2] : null;
     }
 
     let twitterScriptLoaded = false;
