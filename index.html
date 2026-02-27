@@ -79,6 +79,7 @@
       }
 
       feed.innerHTML = posts.map(renderPost).join('');
+      loadTwitterWidgets();
     }
 
     function filterByTag(tag) {
@@ -229,6 +230,15 @@
           }
           return html;
         }
+        const tweetUrl = getTwitterTweetUrl(block.url);
+        if (tweetUrl) {
+          let html = '';
+          if (block.description) {
+            html += `<p class="post-content post-block">${escHtml(block.description).replace(/\n/g, '<br>')}</p>`;
+          }
+          html += `<div class="post-tweet post-block"><blockquote class="twitter-tweet" data-dnt="true"><a href="${escHtml(tweetUrl)}">${escHtml(tweetUrl)}</a></blockquote></div>`;
+          return html;
+        }
         let html = '';
         if (block.description) {
           html += `<p class="post-content post-block">${escHtml(block.description).replace(/\n/g, '<br>')}</p>`;
@@ -253,6 +263,24 @@
         /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
       );
       return m ? m[1] : null;
+    }
+
+    function getTwitterTweetUrl(url) {
+      const m = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/);
+      return m ? 'https://' + m[0] : null;
+    }
+
+    let twitterScriptLoaded = false;
+    function loadTwitterWidgets() {
+      if (window.twttr && window.twttr.widgets && window.twttr.widgets.load) {
+        window.twttr.widgets.load();
+      } else if (!twitterScriptLoaded) {
+        twitterScriptLoaded = true;
+        const s = document.createElement('script');
+        s.src = 'https://platform.twitter.com/widgets.js';
+        s.async = true;
+        document.head.appendChild(s);
+      }
     }
 
     function formatDateTime(iso) {
