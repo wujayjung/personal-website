@@ -283,6 +283,131 @@
         const caption = inputEl('input', 'image-caption', 'Caption (optional)');
         caption.value = data.caption || '';
         div.appendChild(caption);
+
+        // ── Size & alignment controls ──
+        const isCustom = data.size && data.size < 100;
+        const initSize = data.size || 50;
+        const initAlign = data.align || 'center';
+        if (isCustom) {
+          div.dataset.size = initSize;
+          div.dataset.align = initAlign;
+        }
+
+        function applyThumbPreview(size, align) {
+          const thumb = div.querySelector('.image-preview-thumb');
+          if (!thumb) return;
+          const s = parseInt(size);
+          if (!size || isNaN(s)) {
+            // Restore full-width defaults (only when switching away from custom entirely)
+            thumb.style.width = '';
+            thumb.style.height = '';
+            thumb.style.maxHeight = '';
+            thumb.style.objectFit = '';
+            thumb.style.marginLeft = '';
+            thumb.style.marginRight = '';
+          } else {
+            // Width-only resize including 100% — no height constraint so the change is linear
+            thumb.style.width = s + '%';
+            thumb.style.height = 'auto';
+            thumb.style.maxHeight = 'none';
+            thumb.style.objectFit = '';
+            if (align === 'right') { thumb.style.marginLeft = 'auto'; thumb.style.marginRight = '0'; }
+            else if (align === 'center') { thumb.style.marginLeft = 'auto'; thumb.style.marginRight = 'auto'; }
+            else { thumb.style.marginLeft = '0'; thumb.style.marginRight = 'auto'; }
+          }
+        }
+
+        const sizeRow = document.createElement('div');
+        sizeRow.className = 'image-size-row';
+
+        const fullBtn = document.createElement('button');
+        fullBtn.type = 'button';
+        fullBtn.className = 'size-mode-btn' + (isCustom ? '' : ' active');
+        fullBtn.textContent = 'Full width';
+
+        const customBtn = document.createElement('button');
+        customBtn.type = 'button';
+        customBtn.className = 'size-mode-btn' + (isCustom ? ' active' : '');
+        customBtn.textContent = 'Custom size';
+
+        sizeRow.appendChild(fullBtn);
+        sizeRow.appendChild(customBtn);
+        div.appendChild(sizeRow);
+
+        const customControls = document.createElement('div');
+        customControls.className = 'image-custom-controls';
+        customControls.style.display = isCustom ? '' : 'none';
+
+        const widthRow = document.createElement('div');
+        widthRow.className = 'image-width-row';
+
+        const widthLabel = document.createElement('label');
+        widthLabel.className = 'width-label';
+        widthLabel.textContent = 'Width: ';
+
+        const widthValue = document.createElement('span');
+        widthValue.className = 'width-value';
+        widthValue.textContent = initSize + '%';
+        widthLabel.appendChild(widthValue);
+
+        const widthSlider = document.createElement('input');
+        widthSlider.type = 'range';
+        widthSlider.min = '30';
+        widthSlider.max = '100';
+        widthSlider.value = initSize;
+        widthSlider.className = 'image-width-slider';
+        widthSlider.addEventListener('input', function () {
+          widthValue.textContent = this.value + '%';
+          div.dataset.size = this.value;
+          applyThumbPreview(this.value, div.dataset.align || 'center');
+        });
+
+        widthRow.appendChild(widthLabel);
+        widthRow.appendChild(widthSlider);
+        customControls.appendChild(widthRow);
+
+        const alignRow = document.createElement('div');
+        alignRow.className = 'image-align-row';
+
+        [['left', '← Left'], ['center', '— Center'], ['right', 'Right →']].forEach(function (pair) {
+          const align = pair[0], label = pair[1];
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'align-btn' + (align === initAlign ? ' active' : '');
+          btn.dataset.align = align;
+          btn.textContent = label;
+          btn.addEventListener('click', function () {
+            alignRow.querySelectorAll('.align-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            div.dataset.align = align;
+            applyThumbPreview(div.dataset.size, align);
+          });
+          alignRow.appendChild(btn);
+        });
+
+        customControls.appendChild(alignRow);
+        div.appendChild(customControls);
+
+        fullBtn.addEventListener('click', function () {
+          fullBtn.classList.add('active');
+          customBtn.classList.remove('active');
+          customControls.style.display = 'none';
+          delete div.dataset.size;
+          delete div.dataset.align;
+          applyThumbPreview(null, null);
+        });
+
+        customBtn.addEventListener('click', function () {
+          customBtn.classList.add('active');
+          fullBtn.classList.remove('active');
+          customControls.style.display = '';
+          div.dataset.size = widthSlider.value;
+          if (!div.dataset.align) div.dataset.align = 'center';
+          applyThumbPreview(widthSlider.value, div.dataset.align);
+        });
+
+        // Restore preview when editing an existing post with saved size
+        if (isCustom) applyThumbPreview(initSize, initAlign);
       }
 
       return div;
@@ -395,6 +520,11 @@
           if (src) {
             const b = { id: id, type: type, src: src };
             if (caption && caption.trim()) b.caption = caption.trim();
+            const size = el.dataset.size ? parseInt(el.dataset.size) : null;
+            if (size) {
+              b.size = size;
+              b.align = el.dataset.align || 'center';
+            }
             result.push(b);
           }
         }

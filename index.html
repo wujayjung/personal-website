@@ -248,9 +248,18 @@
         return html;
 
       } else if (block.type === 'image') {
-        let html = `<figure class="post-image post-block"><img src="${block.src}" alt="${escHtml(block.caption || '')}"></figure>`;
-        if (block.caption) {
-          html += `<p class="post-image-caption">${escHtml(block.caption)}</p>`;
+        let html;
+        if (block.size && block.size < 100) {
+          const align = block.align || 'center';
+          html = `<div class="post-image-wrap post-block" style="text-align:${align}"><figure class="post-image" style="width:${block.size}%;display:inline-block;"><img src="${block.src}" alt="${escHtml(block.caption || '')}"></figure></div>`;
+          if (block.caption) {
+            html += `<p class="post-image-caption" style="text-align:${align}">${escHtml(block.caption)}</p>`;
+          }
+        } else {
+          html = `<figure class="post-image post-block"><img src="${block.src}" alt="${escHtml(block.caption || '')}"></figure>`;
+          if (block.caption) {
+            html += `<p class="post-image-caption">${escHtml(block.caption)}</p>`;
+          }
         }
         return html;
       }
