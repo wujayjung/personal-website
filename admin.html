@@ -11,7 +11,7 @@
   <div class="container">
 
     <div class="admin-header">
-      <a href="index.html">← back to site</a>
+      <a href="/">← back to site</a>
       <h1>Admin</h1>
       <button class="btn btn-ghost" id="logoutBtn" style="display:none" onclick="doLogout()">Sign out</button>
     </div>
@@ -718,7 +718,7 @@
 
       return segs.map(function(seg) {
         if (seg.type === 'text') {
-          return seg.lines.map(function(l) { return '<p>' + escHtml(l) + '</p>'; }).join('');
+          return seg.lines.map(function(l) { return '<p>' + inlineToHtml(l) + '</p>'; }).join('');
         }
         var min = Math.min.apply(null, seg.items.map(function(it) { return it.indent; }));
         var norm = seg.items.map(function(it) { return Object.assign({}, it, { indent: it.indent - min }); });
@@ -738,7 +738,7 @@
         if (item.indent !== base) { j++; continue; }
         var nested = []; var k = j + 1;
         while (k < items.length && items[k].indent > base) { nested.push(items[k]); k++; }
-        html += '<li>' + escHtml(item.content) + (nested.length ? buildHTMLList(nested, base + 1) : '') + '</li>';
+        html += '<li>' + inlineToHtml(item.content) + (nested.length ? buildHTMLList(nested, base + 1) : '') + '</li>';
         j = k;
       }
       return html + '</' + tag + '>';
@@ -753,6 +753,11 @@
           var content = '';
           Array.from(node.childNodes).forEach(function(c) { content += serNode(c, ''); });
           return content.replace(/\n$/, '') + '\n';
+        }
+        if (name === 'EM' || name === 'I') {
+          var content = '';
+          Array.from(node.childNodes).forEach(function(c) { content += serNode(c, ''); });
+          return content ? '*' + content + '*' : '';
         }
         if (name === 'UL' || name === 'OL') {
           var isDash = node.classList.contains('list-dash');
@@ -986,6 +991,10 @@
       const d = document.createElement('div');
       d.textContent = String(str);
       return d.innerHTML;
+    }
+
+    function inlineToHtml(text) {
+      return escHtml(text).replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
     }
 
     boot();

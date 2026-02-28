@@ -18,7 +18,7 @@ body {
   color: var(--text);
   font-family: var(--sans);
   font-size: 17px;
-  line-height: 1.75;
+  line-height: 1.85;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -727,7 +727,7 @@ div.block-content[contenteditable] ul.list-dash > li::before {
 .post-content > ol + p,
 .post-content > ul + ol,
 .post-content > ol + ul {
-  margin-top: 10px;
+  margin-top: 18px;
 }
 
 .post ul,
@@ -736,7 +736,7 @@ div.block-content[contenteditable] ul.list-dash > li::before {
   margin: 0;
   font-size: 0.85rem;
   font-weight: 300;
-  line-height: 1.75;
+  line-height: 1.85;
 }
 
 .post li {

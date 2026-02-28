@@ -152,7 +152,7 @@
         const nested = [];
         let k = j + 1;
         while (k < items.length && items[k].level > base) { nested.push(items[k]); k++; }
-        html += '<li>' + escHtml(item.content) + (nested.length ? renderNestedList(nested, base + 1) : '') + '</li>';
+        html += '<li>' + inlineToHtml(item.content) + (nested.length ? renderNestedList(nested, base + 1) : '') + '</li>';
         j = k;
       }
       return html + close;
@@ -199,7 +199,7 @@
 
       return segs.map(function(seg) {
         if (seg.type === 'list') return renderNestedList(seg.items, 0);
-        return '<p>' + escHtml(seg.content).replace(/\n/g, '<br>') + '</p>';
+        return '<p>' + seg.content.split('\n').map(inlineToHtml).join('<br>') + '</p>';
       }).join('');
     }
 
@@ -303,6 +303,10 @@
       const d = document.createElement('div');
       d.textContent = str;
       return d.innerHTML;
+    }
+
+    function inlineToHtml(text) {
+      return escHtml(text).replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
     }
 
     boot();
