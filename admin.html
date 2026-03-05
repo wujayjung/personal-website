@@ -709,6 +709,7 @@
           if (items.length) segs.push({ type: 'list', items: items });
         } else if (!line.trim()) {
           if (textBuf.length) { segs.push({ type: 'text', lines: textBuf.slice() }); textBuf = []; }
+          segs.push({ type: 'empty' });
           i++;
         } else {
           textBuf.push(line); i++;
@@ -717,6 +718,7 @@
       if (textBuf.length) segs.push({ type: 'text', lines: textBuf });
 
       return segs.map(function(seg) {
+        if (seg.type === 'empty') return '<p><br></p>';
         if (seg.type === 'text') {
           return seg.lines.map(function(l) { return '<p>' + inlineToHtml(l) + '</p>'; }).join('');
         }

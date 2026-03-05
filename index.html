@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wujay Jung</title>
-  <script>document.write('<link rel="stylesheet" href="style.css?v=' + Date.now() + '">');</script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://zxdqlfusqmhdufsdyhzw.supabase.co">
+  <link rel="dns-prefetch" href="https://platform.twitter.com">
 </head>
 <body>
   <div class="container">
@@ -26,34 +27,52 @@
     </div>
 
     <main id="feed">
-      <p class="empty-state">Nothing here yet.</p>
+      <p class="empty-state">Loading…</p>
     </main>
   </div>
 
   <script>
     const SUPABASE_URL = 'https://zxdqlfusqmhdufsdyhzw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZHFsZnVzcW1oZHVmc2R5aHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDUyMzksImV4cCI6MjA4NzM4MTIzOX0.qItSdfE15aQcG4D6gYfoJq_2-tfHqd7ltVjV_V7qkZw';
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let allPosts = [];
     let isLoggedIn = false;
     let activeTag = null;
 
-    async function boot() {
-      const { data: { session } } = await sb.auth.getSession();
-      isLoggedIn = !!session;
+    // Read Supabase v2 session synchronously from localStorage — no network round trip needed
+    function getSession() {
+      try {
+        const raw = localStorage.getItem('sb-zxdqlfusqmhdufsdyhzw-auth-token');
+        if (!raw) return null;
+        const session = JSON.parse(raw);
+        // Check token hasn't expired
+        if (session && session.expires_at && session.expires_at > Math.floor(Date.now() / 1000)) {
+          return session;
+        }
+      } catch (e) {}
+      return null;
+    }
 
-      let query = sb.from('posts').select('*').order('created_at', { ascending: false });
+    async function boot() {
+      const session = getSession();
+      isLoggedIn = !!session;
+      const token = session ? session.access_token : SUPABASE_ANON_KEY;
+
+      let url = SUPABASE_URL + '/rest/v1/posts?select=*&order=created_at.desc';
       if (!isLoggedIn) {
-        // Filter at the DB level so private post data is never sent to the browser
-        query = query.or('is_private.is.null,is_private.eq.false');
+        url += '&or=(is_private.is.null,is_private.eq.false)';
       }
 
-      const { data, error } = await query;
-      if (error) { console.error(error); return; }
+      const res = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + token
+        }
+      });
 
-      allPosts = data || [];
+      if (!res.ok) { console.error('Failed to fetch posts', res.status); return; }
 
+      allPosts = await res.json();
       renderFeed();
     }
 
@@ -189,6 +208,7 @@
           }
         } else if (!line.trim()) {
           flushText();
+          segs.push({ type: 'empty' });
           i++;
         } else {
           textBuf.push(line);
@@ -199,6 +219,7 @@
 
       return segs.map(function(seg) {
         if (seg.type === 'list') return renderNestedList(seg.items, 0);
+        if (seg.type === 'empty') return '<p><br></p>';
         return '<p>' + seg.content.split('\n').map(inlineToHtml).join('<br>') + '</p>';
       }).join('');
     }
