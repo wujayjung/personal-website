@@ -718,7 +718,7 @@
       if (textBuf.length) segs.push({ type: 'text', lines: textBuf });
 
       return segs.map(function(seg) {
-        if (seg.type === 'empty') return '<p><br></p>';
+        if (seg.type === 'empty') return '<p class="para-break"><br></p>';
         if (seg.type === 'text') {
           return seg.lines.map(function(l) { return '<p>' + inlineToHtml(l) + '</p>'; }).join('');
         }

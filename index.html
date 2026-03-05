@@ -219,7 +219,7 @@
 
       return segs.map(function(seg) {
         if (seg.type === 'list') return renderNestedList(seg.items, 0);
-        if (seg.type === 'empty') return '<p><br></p>';
+        if (seg.type === 'empty') return '<p class="para-break"><br></p>';
         return '<p>' + seg.content.split('\n').map(inlineToHtml).join('<br>') + '</p>';
       }).join('');
     }
