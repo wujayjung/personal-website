@@ -184,6 +184,7 @@
       let textBuf = [];
 
       function flushText() {
+        while (textBuf.length && !textBuf[textBuf.length - 1]) textBuf.pop();
         if (!textBuf.length) return;
         segs.push({ type: 'text', content: textBuf.join('\n') });
         textBuf = [];
@@ -207,8 +208,7 @@
             segs.push({ type: 'list', items: items.map(function(it) { return Object.assign({}, it, { level: it.level - minLv }); }) });
           }
         } else if (!line.trim()) {
-          flushText();
-          segs.push({ type: 'empty' });
+          textBuf.push('');
           i++;
         } else {
           textBuf.push(line);
@@ -219,7 +219,6 @@
 
       return segs.map(function(seg) {
         if (seg.type === 'list') return renderNestedList(seg.items, 0);
-        if (seg.type === 'empty') return '<p class="para-break"><br></p>';
         return '<p>' + seg.content.split('\n').map(inlineToHtml).join('<br>') + '</p>';
       }).join('');
     }

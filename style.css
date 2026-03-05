@@ -720,18 +720,6 @@ div.block-content[contenteditable] ul.list-dash > li::before {
   margin: 0;
 }
 
-.post-content > p.para-break {
-  margin-top: 0;
-  line-height: 0;
-  height: 18px;
-}
-
-div.block-content[contenteditable] p.para-break {
-  margin-top: 0;
-  line-height: 0;
-  height: 12px;
-}
-
 .post-content > p + p,
 .post-content > p + ul,
 .post-content > p + ol,
