@@ -883,10 +883,35 @@ div.block-content[contenteditable] ul.list-dash > li::before {
 
 /* Admin: room indicator in post list */
 .post-item-room {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  color: var(--muted);
-  flex-shrink: 0;
+  vertical-align: middle;
+  margin-left: 6px;
+  position: relative;
+  top: -1px;
+}
+
+/* Bright theme: dark post = solid dark, bright post = outlined */
+.room-circle--dark {
+  fill: var(--text);
+}
+
+.room-circle--bright {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 1;
+}
+
+/* Dark theme: dark post = outlined dark, bright post = solid light */
+html[data-room="dark"] .room-circle--dark {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 1;
+}
+
+html[data-room="dark"] .room-circle--bright {
+  fill: var(--text);
+  stroke: none;
 }
 
 /* Admin: private indicator in post list */

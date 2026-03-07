@@ -688,14 +688,13 @@
         const tagsStr = (p.tags && p.tags.length) ? p.tags.map(function(t) { return '#' + t; }).join(' ') : '';
         const privateBadge = p.is_private ? '<span class="post-item-private">private</span>' : '';
         const roomIcon = p.room === 'dark'
-          ? '<svg width="9" height="9" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" fill="currentColor"/></svg>'
-          : '<svg width="9" height="9" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
+          ? '<svg width="9" height="9" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle class="room-circle room-circle--dark" cx="6.5" cy="6.5" r="5.5"/></svg>'
+          : '<svg width="9" height="9" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle class="room-circle room-circle--bright" cx="6.5" cy="6.5" r="5.5"/></svg>';
         const roomBadge = '<span class="post-item-room">' + roomIcon + '</span>';
 
         return '<div class="post-item">' +
-          '<span class="post-item-content">' + escHtml(preview) + '</span>' +
+          '<span class="post-item-content">' + escHtml(preview) + ' <span class="post-item-room">' + roomIcon + '</span></span>' +
           (tagsStr ? '<span class="post-item-tags">' + escHtml(tagsStr) + '</span>' : '') +
-          roomBadge +
           privateBadge +
           '<span class="post-item-meta">' + dateStr + '</span>' +
           '<button class="post-item-delete" onclick="editPost(\'' + p.id + '\')">edit</button>' +
