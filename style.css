@@ -92,11 +92,14 @@ header .tagline {
   padding: 0;
   color: var(--text);
   line-height: 1;
-  transition: opacity 0.15s;
 }
 
-.room-toggle:hover {
-  opacity: 0.4;
+.room-toggle circle {
+  transition: fill 0.15s;
+}
+
+.room-toggle:hover circle {
+  fill: currentColor;
 }
 
 /* ── Post Feed ── */

@@ -335,10 +335,7 @@
       return escHtml(text).replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
     }
 
-    function getRoomIcon(room) {
-      if (room === 'dark') {
-        return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" fill="currentColor"/></svg>';
-      }
+    function getRoomIcon() {
       return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
     }
 
@@ -347,13 +344,13 @@
       const next = current === 'bright' ? 'dark' : 'bright';
       document.documentElement.setAttribute('data-room', next);
       localStorage.setItem('room', next);
-      document.getElementById('roomToggle').innerHTML = getRoomIcon(next);
+      document.getElementById('roomToggle').innerHTML = getRoomIcon();
       activeTag = null;
       renderFeed();
     }
 
     boot();
-    document.getElementById('roomToggle').innerHTML = getRoomIcon(document.documentElement.getAttribute('data-room') || 'bright');
+    document.getElementById('roomToggle').innerHTML = getRoomIcon();
   </script>
 </body>
 </html>

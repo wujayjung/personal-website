@@ -154,7 +154,7 @@
     }
 
     async function loadPostsFromDB() {
-      const { data, error } = await sb.from('posts').select('*').order('date', { ascending: false });
+      const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
       if (error) { console.error(error); return; }
       posts = data || [];
     }
@@ -669,7 +669,9 @@
       list.style.display = 'block';
       header.textContent = posts.length + ' post' + (posts.length !== 1 ? 's' : '');
 
-      const sorted = posts.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
+      const sorted = posts.slice().sort(function (a, b) {
+        return new Date(b.created_at || b.date) - new Date(a.created_at || a.date);
+      });
 
       items.innerHTML = sorted.map(function (p) {
         // Preview: title or first block content
@@ -1026,10 +1028,7 @@
       return escHtml(text).replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
     }
 
-    function getRoomIcon(room) {
-      if (room === 'dark') {
-        return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" fill="currentColor"/></svg>';
-      }
+    function getRoomIcon() {
       return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
     }
 
@@ -1038,11 +1037,11 @@
       const next = current === 'bright' ? 'dark' : 'bright';
       document.documentElement.setAttribute('data-room', next);
       localStorage.setItem('room', next);
-      document.getElementById('roomToggle').innerHTML = getRoomIcon(next);
+      document.getElementById('roomToggle').innerHTML = getRoomIcon();
     }
 
     boot();
-    document.getElementById('roomToggle').innerHTML = getRoomIcon(document.documentElement.getAttribute('data-room') || 'bright');
+    document.getElementById('roomToggle').innerHTML = getRoomIcon();
   </script>
 </body>
 </html>
