@@ -5,10 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin</title>
   <script>document.write('<link rel="stylesheet" href="style.css?v=' + Date.now() + '">');</script>
+  <script>(function(){var r=localStorage.getItem('room')||'bright';document.documentElement.setAttribute('data-room',r);})()</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="container">
+
+    <button class="room-toggle" id="roomToggle" onclick="toggleRoom()" title=""></button>
 
     <div class="admin-header">
       <a href="/">← back to site</a>
@@ -54,6 +57,19 @@
           <label class="form-label" for="postPrivate">
             <input type="checkbox" id="postPrivate">
             Private — only visible when you're logged in
+          </label>
+        </div>
+
+        <!-- Room selector -->
+        <div class="form-group-inline">
+          <label class="form-label" style="margin-right:12px">Room</label>
+          <label class="form-label" style="text-transform:none;letter-spacing:0;font-size:0.875rem;margin-right:12px">
+            <input type="radio" name="postRoom" value="bright" id="postRoomBright" checked style="width:auto;margin:0 4px 0 0">
+            Bright
+          </label>
+          <label class="form-label" style="text-transform:none;letter-spacing:0;font-size:0.875rem">
+            <input type="radio" name="postRoom" value="dark" id="postRoomDark" style="width:auto;margin:0 4px 0 0">
+            Dark
           </label>
         </div>
 
@@ -541,6 +557,7 @@
       const blocks = collectBlocks();
       const tags = parseTags(document.getElementById('postTags').value);
       const isPrivate = document.getElementById('postPrivate').checked;
+      const room = document.querySelector('input[name="postRoom"]:checked').value;
 
       if (!blocks.length) {
         setStatus('Add some content first.');
@@ -553,6 +570,7 @@
           blocks: blocks,
           tags: tags,
           is_private: isPrivate,
+          room: room,
         }).eq('id', editingId);
         if (error) { setStatus('Error: ' + error.message); return; }
         sessionStorage.setItem('flash', 'Updated.');
@@ -565,7 +583,7 @@
         String(now.getMonth() + 1).padStart(2, '0') + '-' +
         String(now.getDate()).padStart(2, '0');
 
-      const post = { id: Date.now().toString(), date: date, blocks: blocks, tags: tags, is_private: isPrivate };
+      const post = { id: Date.now().toString(), date: date, blocks: blocks, tags: tags, is_private: isPrivate, room: room };
       if (title) post.title = title;
 
       const { error } = await sb.from('posts').insert(post);
@@ -595,6 +613,10 @@
       // Populate private toggle
       document.getElementById('postPrivate').checked = !!post.is_private;
 
+      // Populate room
+      const roomVal = post.room || 'bright';
+      document.querySelector('input[name="postRoom"][value="' + roomVal + '"]').checked = true;
+
       // Populate blocks
       document.getElementById('blockEditor').innerHTML = '';
       (post.blocks || []).forEach(function (block) {
@@ -618,6 +640,7 @@
       document.getElementById('postTitle').value = '';
       document.getElementById('postTags').value = '';
       document.getElementById('postPrivate').checked = false;
+      document.getElementById('postRoomBright').checked = true;
       document.getElementById('blockEditor').innerHTML = '';
       document.getElementById('submitBtn').textContent = 'Post';
       document.getElementById('cancelBtn').style.display = 'none';
@@ -664,10 +687,15 @@
 
         const tagsStr = (p.tags && p.tags.length) ? p.tags.map(function(t) { return '#' + t; }).join(' ') : '';
         const privateBadge = p.is_private ? '<span class="post-item-private">private</span>' : '';
+        const roomIcon = p.room === 'dark'
+          ? '<svg width="9" height="9" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" fill="currentColor"/></svg>'
+          : '<svg width="9" height="9" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
+        const roomBadge = '<span class="post-item-room">' + roomIcon + '</span>';
 
         return '<div class="post-item">' +
           '<span class="post-item-content">' + escHtml(preview) + '</span>' +
           (tagsStr ? '<span class="post-item-tags">' + escHtml(tagsStr) + '</span>' : '') +
+          roomBadge +
           privateBadge +
           '<span class="post-item-meta">' + dateStr + '</span>' +
           '<button class="post-item-delete" onclick="editPost(\'' + p.id + '\')">edit</button>' +
@@ -999,7 +1027,23 @@
       return escHtml(text).replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
     }
 
+    function getRoomIcon(room) {
+      if (room === 'dark') {
+        return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" fill="currentColor"/></svg>';
+      }
+      return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
+    }
+
+    function toggleRoom() {
+      const current = document.documentElement.getAttribute('data-room') || 'bright';
+      const next = current === 'bright' ? 'dark' : 'bright';
+      document.documentElement.setAttribute('data-room', next);
+      localStorage.setItem('room', next);
+      document.getElementById('roomToggle').innerHTML = getRoomIcon(next);
+    }
+
     boot();
+    document.getElementById('roomToggle').innerHTML = getRoomIcon(document.documentElement.getAttribute('data-room') || 'bright');
   </script>
 </body>
 </html>

@@ -5,7 +5,7 @@
 }
 
 :root {
-  --text: #1a1a1a;
+  --text: #222;
   --muted: #999;
   --border: #e8e8e8;
   --bg: #fff;
@@ -82,6 +82,23 @@ header .tagline {
   fill: currentColor;
 }
 
+.room-toggle {
+  position: fixed;
+  top: 24px;
+  left: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text);
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+
+.room-toggle:hover {
+  opacity: 0.4;
+}
+
 /* ── Post Feed ── */
 
 .post {
@@ -149,13 +166,7 @@ header .tagline {
 /* ── Admin Page ── */
 
 .admin-header {
-  margin-bottom: 56px;
-}
-
-.admin-header h1 {
-  font-size: 1rem;
-  font-weight: normal;
-  font-family: var(--sans);
+  margin-bottom: 48px;
 }
 
 .admin-header a {
@@ -164,11 +175,22 @@ header .tagline {
   color: var(--muted);
   text-decoration: none;
   display: inline-block;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .admin-header a:hover {
   color: var(--text);
+}
+
+.admin-header h1 {
+  font-size: 1rem;
+  font-weight: normal;
+  font-family: var(--sans);
+  margin-bottom: 12px;
+}
+
+.admin-header .btn {
+  display: block;
 }
 
 .file-bar {
@@ -859,6 +881,14 @@ div.block-content[contenteditable] ul.list-dash > li::before {
   cursor: pointer;
 }
 
+/* Admin: room indicator in post list */
+.post-item-room {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 /* Admin: private indicator in post list */
 .post-item-private {
   font-size: 0.68rem;
@@ -912,6 +942,107 @@ div.block-content[contenteditable] ul.list-dash > li::before {
   font-size: 0.875rem;
   color: var(--text);
   flex: 1;
+}
+
+/* ── Dark room ── */
+
+html[data-room="dark"] {
+  --text: #c8c8c8;
+  --muted: #484848;
+  --border: #242424;
+  --bg: #111;
+}
+
+html[data-room="dark"] body {
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s, color 0.3s;
+}
+
+html[data-room="dark"] .post-title {
+  color: #d8d8d8;
+}
+
+html[data-room="dark"] .post-content {
+  color: #7a7a7a;
+}
+
+html[data-room="dark"] .post blockquote {
+  color: #666;
+  border-left-color: var(--border);
+}
+
+html[data-room="dark"] .post ul.list-dash > li::before {
+  color: inherit;
+}
+
+html[data-room="dark"] input[type="text"],
+html[data-room="dark"] input[type="url"],
+html[data-room="dark"] input[type="date"],
+html[data-room="dark"] input[type="email"],
+html[data-room="dark"] input[type="password"],
+html[data-room="dark"] textarea,
+html[data-room="dark"] select {
+  background: #222;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-room="dark"] input:focus,
+html[data-room="dark"] textarea:focus,
+html[data-room="dark"] select:focus {
+  border-color: #555;
+}
+
+html[data-room="dark"] .block {
+  background: #1c1c1c;
+}
+
+html[data-room="dark"] div.block-content[contenteditable] {
+  background: #2a2a2a;
+  color: var(--text);
+  border-color: #333;
+}
+
+html[data-room="dark"] div.block-content[contenteditable][data-placeholder]:empty::before {
+  color: #555;
+}
+
+html[data-room="dark"] .text-format-toolbar {
+  border-color: #333;
+}
+
+html[data-room="dark"] .fmt-btn {
+  color: #666;
+  border-right-color: #333;
+}
+
+html[data-room="dark"] .fmt-btn:hover {
+  background: #333;
+  color: var(--text);
+}
+
+html[data-room="dark"] .btn {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--text);
+}
+
+html[data-room="dark"] .btn:hover {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+html[data-room="dark"] .btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+html[data-room="dark"] .btn-ghost:hover {
+  background: #222;
+  color: var(--text);
 }
 
 /* ── Responsive ── */

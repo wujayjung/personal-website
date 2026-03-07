@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wujay Jung</title>
   <link rel="stylesheet" href="style.css">
+  <script>(function(){var r=localStorage.getItem('room')||'bright';document.documentElement.setAttribute('data-room',r);})()</script>
   <link rel="preconnect" href="https://zxdqlfusqmhdufsdyhzw.supabase.co">
   <link rel="dns-prefetch" href="https://platform.twitter.com">
 </head>
 <body>
   <div class="container">
+    <button class="room-toggle" id="roomToggle" onclick="toggleRoom()" title=""></button>
+
     <a class="admin-link" href="admin.html" title="">
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="0.5" y="0.5" width="12" height="12" stroke="currentColor"/>
@@ -78,7 +81,10 @@
 
     function renderFeed() {
       const feed = document.getElementById('feed');
-      let posts = allPosts;
+      const room = document.documentElement.getAttribute('data-room') || 'bright';
+      let posts = room === 'dark'
+        ? allPosts.filter(function(p) { return p.room === 'dark'; })
+        : allPosts.filter(function(p) { return !p.room || p.room === 'bright'; });
 
       if (activeTag) {
         posts = posts.filter(function(p) {
@@ -329,7 +335,25 @@
       return escHtml(text).replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
     }
 
+    function getRoomIcon(room) {
+      if (room === 'dark') {
+        return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" fill="currentColor"/></svg>';
+      }
+      return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
+    }
+
+    function toggleRoom() {
+      const current = document.documentElement.getAttribute('data-room') || 'bright';
+      const next = current === 'bright' ? 'dark' : 'bright';
+      document.documentElement.setAttribute('data-room', next);
+      localStorage.setItem('room', next);
+      document.getElementById('roomToggle').innerHTML = getRoomIcon(next);
+      activeTag = null;
+      renderFeed();
+    }
+
     boot();
+    document.getElementById('roomToggle').innerHTML = getRoomIcon(document.documentElement.getAttribute('data-room') || 'bright');
   </script>
 </body>
 </html>
