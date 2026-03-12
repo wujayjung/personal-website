@@ -745,11 +745,20 @@ div.block-content[contenteditable] ul.list-dash > li::before {
   margin: 0;
 }
 
-.post-content > p + p,
+.post-content > p + p {
+  margin-top: 18px;
+}
+
 .post-content > p + ul,
-.post-content > p + ol,
+.post-content > p + ol {
+  margin-top: 6px;
+}
+
 .post-content > ul + p,
-.post-content > ol + p,
+.post-content > ol + p {
+  margin-top: 28px;
+}
+
 .post-content > ul + ol,
 .post-content > ol + ul {
   margin-top: 18px;
