@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin</title>
+  <link rel="icon" type="image/png" href="images/twohkcats.png">
   <script>document.write('<link rel="stylesheet" href="style.css?v=' + Date.now() + '">');</script>
   <script>(function(){var r=localStorage.getItem('room')||'bright';document.documentElement.setAttribute('data-room',r);})()</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -37,6 +38,13 @@
 
     <!-- Admin content (shown after login) -->
     <div id="adminContent" style="display:none">
+
+      <div class="mode-picker">
+        <button type="button" class="mode-btn active" id="modeBtnBlog" onclick="setMode('blog')">Blog</button>
+        <button type="button" class="mode-btn" id="modeBtnBooks" onclick="setMode('books')">Books</button>
+      </div>
+
+      <div id="blogMode">
 
       <form id="postForm" novalidate>
 
@@ -111,6 +119,47 @@
         <div id="ideaItems"></div>
       </div>
 
+      </div><!-- end blogMode -->
+
+      <div id="booksMode" style="display:none">
+
+        <form id="bookForm" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="bookTitle">Title</label>
+            <input type="text" id="bookTitle" placeholder="Book title">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bookAuthor">Author (optional)</label>
+            <input type="text" id="bookAuthor" placeholder="Author name">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bookRating">Rating (optional, 1–5)</label>
+            <input type="text" id="bookRating" placeholder="4">
+          </div>
+          <div class="form-group-inline">
+            <label class="form-label" for="bookPrivate">
+              <input type="checkbox" id="bookPrivate">
+              Private — only visible when you're logged in
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bookNotes">Notes (optional)</label>
+            <textarea id="bookNotes" placeholder="Thoughts on the book..." style="min-height:100px"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button type="submit" class="btn" id="bookSubmitBtn">Add book</button>
+            <button type="button" class="btn btn-ghost" id="bookCancelBtn" style="display:none" onclick="cancelBookEdit()">Cancel</button>
+          </div>
+          <p class="form-status" id="bookFormStatus"></p>
+        </form>
+
+        <div class="post-list" id="bookList" style="display:none">
+          <p class="post-list-header" id="bookListHeader"></p>
+          <div id="bookItems"></div>
+        </div>
+
+      </div><!-- end booksMode -->
+
     </div>
 
   </div>
@@ -123,6 +172,9 @@
     let posts = [];
     let editingId = null;
     let ideas = [];
+    let books = [];
+    let editingBookId = null;
+    let currentMode = 'blog';
 
     // ── Boot ──
 
@@ -141,9 +193,11 @@
       document.getElementById('logoutBtn').style.display = '';
       await loadPostsFromDB();
       await loadIdeasFromDB();
+      await loadBooksFromDB();
       addBlock('text');
       renderPostList();
       renderIdeas();
+      renderBookList();
 
       const flash = sessionStorage.getItem('flash');
       if (flash) {
@@ -1007,6 +1061,117 @@
       ideas = ideas.filter(function (i) { return i.id !== id; });
       renderIdeas();
     }
+
+    // ── Mode switching ──
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('blogMode').style.display = mode === 'blog' ? '' : 'none';
+      document.getElementById('booksMode').style.display = mode === 'books' ? '' : 'none';
+      document.getElementById('modeBtnBlog').classList.toggle('active', mode === 'blog');
+      document.getElementById('modeBtnBooks').classList.toggle('active', mode === 'books');
+    }
+
+    // ── Books ──
+
+    async function loadBooksFromDB() {
+      const { data, error } = await sb.from('books').select('*').order('created_at', { ascending: false });
+      if (error) { console.error(error); return; }
+      books = data || [];
+    }
+
+    function renderBookList() {
+      const list = document.getElementById('bookList');
+      const items = document.getElementById('bookItems');
+      const header = document.getElementById('bookListHeader');
+      if (!books.length) { list.style.display = 'none'; return; }
+      list.style.display = 'block';
+      header.textContent = books.length + ' book' + (books.length !== 1 ? 's' : '');
+      items.innerHTML = books.map(function(b) {
+        const meta = [b.author, b.rating ? b.rating + '/5' : null].filter(Boolean).join(' · ');
+        return '<div class="post-item">' +
+          '<span class="post-item-content">' + escHtml(b.title) + '</span>' +
+          (meta ? '<span class="post-item-meta">' + escHtml(meta) + '</span>' : '') +
+          '<button class="post-item-delete" onclick="editBook(\'' + String(b.id) + '\')">edit</button>' +
+          '<button class="post-item-delete" onclick="deleteBook(\'' + String(b.id) + '\')">delete</button>' +
+          '</div>';
+      }).join('');
+    }
+
+    function editBook(id) {
+      const book = books.find(function(b) { return String(b.id) === String(id); });
+      if (!book) return;
+      editingBookId = id;
+      document.getElementById('bookTitle').value = book.title || '';
+      document.getElementById('bookAuthor').value = book.author || '';
+      document.getElementById('bookRating').value = book.rating || '';
+      document.getElementById('bookNotes').value = book.notes || '';
+      document.getElementById('bookPrivate').checked = !!book.is_private;
+      document.getElementById('bookSubmitBtn').textContent = 'Update';
+      document.getElementById('bookCancelBtn').style.display = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelBookEdit() {
+      resetBookForm();
+    }
+
+    function resetBookForm() {
+      editingBookId = null;
+      document.getElementById('bookTitle').value = '';
+      document.getElementById('bookAuthor').value = '';
+      document.getElementById('bookRating').value = '';
+      document.getElementById('bookNotes').value = '';
+      document.getElementById('bookPrivate').checked = false;
+      document.getElementById('bookSubmitBtn').textContent = 'Add book';
+      document.getElementById('bookCancelBtn').style.display = 'none';
+      setBookStatus('');
+    }
+
+    function setBookStatus(msg) {
+      document.getElementById('bookFormStatus').textContent = msg;
+    }
+
+    async function deleteBook(id) {
+      if (!confirm('Delete this book?')) return;
+      const { error } = await sb.from('books').delete().eq('id', id);
+      if (error) { alert('Error: ' + error.message); return; }
+      books = books.filter(function(b) { return String(b.id) !== String(id); });
+      renderBookList();
+    }
+
+    document.getElementById('bookForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const title = document.getElementById('bookTitle').value.trim();
+      if (!title) { setBookStatus('Title is required.'); return; }
+      const author = document.getElementById('bookAuthor').value.trim();
+      const ratingStr = document.getElementById('bookRating').value.trim();
+      const notes = document.getElementById('bookNotes').value.trim();
+      const isPrivate = document.getElementById('bookPrivate').checked;
+      const record = { title: title, is_private: isPrivate };
+      if (author) record.author = author;
+      if (ratingStr) record.rating = parseInt(ratingStr);
+      if (notes) record.notes = notes;
+
+      if (editingBookId) {
+        const { error } = await sb.from('books').update(record).eq('id', editingBookId);
+        if (error) { setBookStatus('Error: ' + error.message); return; }
+        await loadBooksFromDB();
+        resetBookForm();
+        setBookStatus('Updated.');
+        setTimeout(function() { setBookStatus(''); }, 2000);
+        renderBookList();
+        return;
+      }
+
+      const { error } = await sb.from('books').insert(record);
+      if (error) { setBookStatus('Error: ' + error.message); return; }
+      await loadBooksFromDB();
+      resetBookForm();
+      setBookStatus('Added.');
+      setTimeout(function() { setBookStatus(''); }, 2000);
+      renderBookList();
+    });
 
     // ── Helpers ──
 

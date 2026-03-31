@@ -4,13 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Books — Wujay Jung</title>
-  <link rel="icon" type="image/svg+xml" href="images/darksvg.svg">
+  <link rel="icon" type="image/png" href="images/twohkcats.png">
   <link rel="stylesheet" href="style.css">
   <script>(function(){var r=localStorage.getItem('room')||'bright';document.documentElement.setAttribute('data-room',r);})()</script>
+  <link rel="preconnect" href="https://zxdqlfusqmhdufsdyhzw.supabase.co">
 </head>
 <body>
   <div class="container">
     <button class="room-toggle" id="roomToggle" onclick="toggleRoom()" title=""></button>
+
+    <a class="books-link" href="index.html" title="Home">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 6.5H2M2 6.5L5.5 3M2 6.5L5.5 10" stroke="currentColor"/>
+      </svg>
+    </a>
 
     <a class="admin-link" href="admin.html" title="">
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -21,31 +28,64 @@
     <header>
       <h1>Wujay Jung</h1>
       <p class="tagline">Books I've read.</p>
-      <nav class="page-nav">
-        <a href="index.html" title="Home">
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11 6.5H2M2 6.5L5.5 3M2 6.5L5.5 10" stroke="currentColor"/>
-          </svg>
-        </a>
-      </nav>
+      <p class="book-count" id="bookCount"></p>
     </header>
 
     <main>
-      <ul class="book-list">
-        <!--
-          Template for each book entry:
-          <li>
-            <p class="book-title">Title</p>
-            <p class="book-author">Author</p>
-            <p class="book-year">2025</p>
-          </li>
-        -->
-      </ul>
-      <p class="empty-state" id="emptyState">Nothing here yet.</p>
+      <ul class="book-list" id="bookList"></ul>
+      <p class="empty-state" id="emptyState">Loading…</p>
     </main>
   </div>
 
   <script>
+    const SUPABASE_URL = 'https://zxdqlfusqmhdufsdyhzw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZHFsZnVzcW1oZHVmc2R5aHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDUyMzksImV4cCI6MjA4NzM4MTIzOX0.qItSdfE15aQcG4D6gYfoJq_2-tfHqd7ltVjV_V7qkZw';
+
+    async function fetchBooks() {
+      const res = await fetch(SUPABASE_URL + '/rest/v1/books?select=*&order=created_at.desc&or=(is_private.is.null,is_private.eq.false)', {
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+      });
+      if (!res.ok) throw new Error('Failed to fetch books');
+      return res.json();
+    }
+
+    function renderBooks(books) {
+      const list = document.getElementById('bookList');
+      const empty = document.getElementById('emptyState');
+      if (!books.length) {
+        empty.textContent = 'Nothing here yet.';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+      document.getElementById('bookCount').textContent = 'Book count: ' + books.length;
+      list.innerHTML = books.map(function(b) {
+        let html = '<li>';
+        html += '<p class="book-title">' + escHtml(b.title) + '</p>';
+        const date = b.created_at ? new Date(b.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+        const meta = [b.author, date, b.rating ? b.rating + '/5' : null].filter(Boolean).join(' · ');
+        if (meta) html += '<p class="book-year">' + escHtml(meta) + '</p>';
+        if (b.notes) html += '<p class="book-notes">' + escHtml(b.notes) + '</p>';
+        html += '</li>';
+        return html;
+      }).join('');
+    }
+
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = String(str);
+      return d.innerHTML;
+    }
+
+    async function boot() {
+      try {
+        const books = await fetchBooks();
+        renderBooks(books);
+      } catch (e) {
+        document.getElementById('emptyState').textContent = 'Failed to load books.';
+      }
+    }
+
     function getRoomIcon() {
       return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
     }
@@ -59,11 +99,7 @@
     }
 
     document.getElementById('roomToggle').innerHTML = getRoomIcon();
-
-    const list = document.querySelector('.book-list');
-    if (list && list.children.length > 0) {
-      document.getElementById('emptyState').style.display = 'none';
-    }
+    boot();
   </script>
 </body>
 </html>
