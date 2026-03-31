@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Books — Wujay Jung</title>
+  <link rel="icon" type="image/svg+xml" href="images/darksvg.svg">
+  <link rel="stylesheet" href="style.css">
+  <script>(function(){var r=localStorage.getItem('room')||'bright';document.documentElement.setAttribute('data-room',r);})()</script>
+</head>
+<body>
+  <div class="container">
+    <button class="room-toggle" id="roomToggle" onclick="toggleRoom()" title=""></button>
+
+    <a class="admin-link" href="admin.html" title="">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0.5" y="0.5" width="12" height="12" stroke="currentColor"/>
+      </svg>
+    </a>
+
+    <header>
+      <h1>Wujay Jung</h1>
+      <p class="tagline">Books I've read.</p>
+      <nav class="page-nav">
+        <a href="index.html" title="Home">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11 6.5H2M2 6.5L5.5 3M2 6.5L5.5 10" stroke="currentColor"/>
+          </svg>
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <ul class="book-list">
+        <!--
+          Template for each book entry:
+          <li>
+            <p class="book-title">Title</p>
+            <p class="book-author">Author</p>
+            <p class="book-year">2025</p>
+          </li>
+        -->
+      </ul>
+      <p class="empty-state" id="emptyState">Nothing here yet.</p>
+    </main>
+  </div>
+
+  <script>
+    function getRoomIcon() {
+      return '<svg width="13" height="13" viewBox="0 0 13 13" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" fill="none"/></svg>';
+    }
+
+    function toggleRoom() {
+      const current = document.documentElement.getAttribute('data-room') || 'bright';
+      const next = current === 'bright' ? 'dark' : 'bright';
+      document.documentElement.setAttribute('data-room', next);
+      localStorage.setItem('room', next);
+      document.getElementById('roomToggle').innerHTML = getRoomIcon();
+    }
+
+    document.getElementById('roomToggle').innerHTML = getRoomIcon();
+
+    const list = document.querySelector('.book-list');
+    if (list && list.children.length > 0) {
+      document.getElementById('emptyState').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

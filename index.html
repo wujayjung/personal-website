@@ -14,6 +14,13 @@
   <div class="container">
     <button class="room-toggle" id="roomToggle" onclick="toggleRoom()" title=""></button>
 
+    <a class="books-link" href="books.html" title="">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6.5 1.5C5 1 2.5 1 1 1.5v10c1.5-.5 4-.5 5.5 0V1.5Z" stroke="currentColor"/>
+        <path d="M6.5 1.5C8 1 10.5 1 12 1.5v10c-1.5-.5-4-.5-5.5 0V1.5Z" stroke="currentColor"/>
+      </svg>
+    </a>
+
     <a class="admin-link" href="admin.html" title="">
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="0.5" y="0.5" width="12" height="12" stroke="currentColor"/>
@@ -57,27 +64,59 @@
       return null;
     }
 
-    async function boot() {
-      const session = getSession();
-      isLoggedIn = !!session;
-      const token = session ? session.access_token : SUPABASE_ANON_KEY;
+    const CACHE_KEY = 'posts_cache';
 
+    async function fetchPosts(token) {
       let url = SUPABASE_URL + '/rest/v1/posts?select=*&order=created_at.desc';
       if (!isLoggedIn) {
         url += '&or=(is_private.is.null,is_private.eq.false)';
       }
-
       const res = await fetch(url, {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': 'Bearer ' + token
         }
       });
+      if (!res.ok) throw new Error('Failed to fetch posts: ' + res.status);
+      return res.json();
+    }
 
-      if (!res.ok) { console.error('Failed to fetch posts', res.status); return; }
+    async function boot() {
+      const session = getSession();
+      isLoggedIn = !!session;
+      const token = session ? session.access_token : SUPABASE_ANON_KEY;
+      const cacheKey = CACHE_KEY + (isLoggedIn ? '_authed' : '');
 
-      allPosts = await res.json();
-      renderFeed();
+      // Render cached posts instantly if available
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          allPosts = JSON.parse(cached);
+          renderFeed();
+        }
+      } catch (e) {}
+
+      // Fetch fresh data in background
+      try {
+        const fresh = await fetchPosts(token);
+        const freshStr = JSON.stringify(fresh);
+        let cached = null;
+        try {
+          cached = localStorage.getItem(cacheKey);
+          localStorage.setItem(cacheKey, freshStr);
+        } catch (storageErr) {
+          // localStorage full — skip caching, still render
+        }
+        if (!cached || cached !== freshStr) {
+          allPosts = fresh;
+          renderFeed();
+        }
+      } catch (e) {
+        console.error(e);
+        if (!allPosts.length) {
+          document.getElementById('feed').innerHTML = '<p class="empty-state">Failed to load posts.</p>';
+        }
+      }
     }
 
     function renderFeed() {

@@ -82,6 +82,7 @@ header .tagline {
   fill: currentColor;
 }
 
+
 .room-toggle {
   position: fixed;
   top: 24px;
@@ -100,6 +101,60 @@ header .tagline {
 
 .room-toggle:hover circle {
   fill: currentColor;
+}
+
+.books-link {
+  position: fixed;
+  top: 24px;
+  left: 49px;
+  color: var(--text);
+  text-decoration: none;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.books-link path {
+  fill: none;
+  transition: fill 0.15s;
+}
+
+.books-link:hover path {
+  fill: var(--text);
+}
+
+/* ── Books ── */
+
+.book-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.book-list li {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.book-list li:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.book-title {
+  font-size: 0.95rem;
+  font-family: var(--serif);
+}
+
+.book-author {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.book-year {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 /* ── Post Feed ── */
