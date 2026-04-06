@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
   <title>Wujay Jung</title>
   <link rel="icon" type="image/png" href="images/twohkcats.png">
   <link rel="stylesheet" href="style.css">
@@ -11,6 +12,21 @@
   <link rel="dns-prefetch" href="https://platform.twitter.com">
 </head>
 <body>
+  <div id="loginScreen" class="login-screen" style="display:none">
+    <form id="loginForm" class="login-form" novalidate>
+      <p class="login-name">Wujay Jung</p>
+      <div class="form-group">
+        <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn">Sign in</button>
+      <p class="form-status" id="loginStatus"></p>
+    </form>
+  </div>
+
+  <div id="mainContent" style="display:none">
   <div class="container">
     <button class="room-toggle" id="roomToggle" onclick="toggleRoom()" title=""></button>
 
@@ -41,6 +57,7 @@
       <p class="empty-state">Loading…</p>
     </main>
   </div>
+  </div><!-- end mainContent -->
 
   <script>
     const SUPABASE_URL = 'https://zxdqlfusqmhdufsdyhzw.supabase.co';
@@ -83,9 +100,18 @@
 
     async function boot() {
       const session = getSession();
-      isLoggedIn = !!session;
-      const token = session ? session.access_token : SUPABASE_ANON_KEY;
-      const cacheKey = CACHE_KEY + (isLoggedIn ? '_authed' : '');
+      if (!session) {
+        document.getElementById('loginScreen').style.display = '';
+        return;
+      }
+      await showMain(session.access_token);
+    }
+
+    async function showMain(token) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainContent').style.display = '';
+      isLoggedIn = true;
+      const cacheKey = CACHE_KEY + '_authed';
 
       // Render cached posts instantly if available
       try {
@@ -104,9 +130,7 @@
         try {
           cached = localStorage.getItem(cacheKey);
           localStorage.setItem(cacheKey, freshStr);
-        } catch (storageErr) {
-          // localStorage full — skip caching, still render
-        }
+        } catch (storageErr) {}
         if (!cached || cached !== freshStr) {
           allPosts = fresh;
           renderFeed();
@@ -118,6 +142,32 @@
         }
       }
     }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const status = document.getElementById('loginStatus');
+      status.textContent = 'Signing in…';
+      try {
+        const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          status.textContent = err.error_description || err.msg || 'Sign in failed';
+          return;
+        }
+        const session = await res.json();
+        localStorage.setItem('sb-zxdqlfusqmhdufsdyhzw-auth-token', JSON.stringify(session));
+        status.textContent = '';
+        await showMain(session.access_token);
+      } catch (e) {
+        status.textContent = 'Sign in failed.';
+      }
+    });
 
     function renderFeed() {
       const feed = document.getElementById('feed');

@@ -235,6 +235,36 @@ header .tagline {
 
 /* ── Admin Page ── */
 
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 280px;
+}
+
+.login-name {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  margin-bottom: 24px;
+}
+
+.login-form .btn {
+  background: #fff;
+  color: #222;
+  border-color: #222;
+}
+
+.login-form .btn:hover {
+  background: #222;
+  color: #fff;
+  border-color: #222;
+}
+
 .admin-header {
   margin-bottom: 48px;
 }
