@@ -63,9 +63,15 @@
     const SUPABASE_URL = 'https://zxdqlfusqmhdufsdyhzw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZHFsZnVzcW1oZHVmc2R5aHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDUyMzksImV4cCI6MjA4NzM4MTIzOX0.qItSdfE15aQcG4D6gYfoJq_2-tfHqd7ltVjV_V7qkZw';
 
+    const PAGE_SIZE = 5;
     let allPosts = [];
     let isLoggedIn = false;
     let activeTag = null;
+    let currentOffset = 0;
+    let hasMore = true;
+    let isFetching = false;
+    let currentToken = null;
+    let scrollObserver = null;
 
     // Read Supabase v2 session synchronously from localStorage — no network round trip needed
     function getSession() {
@@ -83,11 +89,12 @@
 
     const CACHE_KEY = 'posts_cache';
 
-    async function fetchPosts(token) {
+    async function fetchPosts(token, limit, offset) {
       let url = SUPABASE_URL + '/rest/v1/posts?select=*&order=created_at.desc';
       if (!isLoggedIn) {
         url += '&or=(is_private.is.null,is_private.eq.false)';
       }
+      url += '&limit=' + limit + '&offset=' + offset;
       const res = await fetch(url, {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
@@ -111,36 +118,88 @@
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainContent').style.display = '';
       isLoggedIn = true;
-      const cacheKey = CACHE_KEY + '_authed';
+      currentToken = token;
+      allPosts = [];
+      currentOffset = 0;
+      hasMore = true;
 
-      // Render cached posts instantly if available
+      // Render cached first page instantly if available
       try {
-        const cached = localStorage.getItem(cacheKey);
+        const cached = localStorage.getItem(CACHE_KEY + '_authed');
         if (cached) {
           allPosts = JSON.parse(cached);
           renderFeed();
         }
       } catch (e) {}
 
-      // Fetch fresh data in background
+      // Fetch first page fresh
       try {
-        const fresh = await fetchPosts(token);
-        const freshStr = JSON.stringify(fresh);
-        let cached = null;
-        try {
-          cached = localStorage.getItem(cacheKey);
-          localStorage.setItem(cacheKey, freshStr);
-        } catch (storageErr) {}
-        if (!cached || cached !== freshStr) {
-          allPosts = fresh;
-          renderFeed();
-        }
+        const fresh = await fetchPosts(token, PAGE_SIZE, 0);
+        allPosts = fresh;
+        currentOffset = fresh.length;
+        hasMore = fresh.length === PAGE_SIZE;
+        try { localStorage.setItem(CACHE_KEY + '_authed', JSON.stringify(fresh)); } catch (e) {}
+        renderFeed();
       } catch (e) {
         console.error(e);
         if (!allPosts.length) {
           document.getElementById('feed').innerHTML = '<p class="empty-state">Failed to load posts.</p>';
         }
       }
+    }
+
+    async function loadMorePosts() {
+      if (isFetching || !hasMore || activeTag) return;
+      isFetching = true;
+      try {
+        const more = await fetchPosts(currentToken, PAGE_SIZE, currentOffset);
+        if (!more.length) { hasMore = false; removeSentinel(); return; }
+        allPosts = allPosts.concat(more);
+        currentOffset += more.length;
+        hasMore = more.length === PAGE_SIZE;
+        appendPostsToFeed(more);
+        if (!hasMore) removeSentinel();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        isFetching = false;
+      }
+    }
+
+    function appendPostsToFeed(posts) {
+      const feed = document.getElementById('feed');
+      const room = document.documentElement.getAttribute('data-room') || 'bright';
+      const filtered = room === 'dark'
+        ? posts.filter(function(p) { return p.room === 'dark'; })
+        : posts.filter(function(p) { return !p.room || p.room === 'bright'; });
+      const sentinel = document.getElementById('loadMoreSentinel');
+      const html = filtered.map(renderPost).join('');
+      if (sentinel) {
+        sentinel.insertAdjacentHTML('beforebegin', html);
+      } else {
+        feed.insertAdjacentHTML('beforeend', html);
+      }
+      loadTwitterWidgets();
+    }
+
+    function removeSentinel() {
+      const s = document.getElementById('loadMoreSentinel');
+      if (s) s.remove();
+    }
+
+    function setupInfiniteScroll() {
+      if (scrollObserver) scrollObserver.disconnect();
+      let sentinel = document.getElementById('loadMoreSentinel');
+      if (!sentinel) {
+        sentinel = document.createElement('div');
+        sentinel.id = 'loadMoreSentinel';
+        sentinel.innerHTML = '<span></span><span></span><span></span>';
+        document.getElementById('feed').appendChild(sentinel);
+      }
+      scrollObserver = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting) loadMorePosts();
+      }, { rootMargin: '300px' });
+      scrollObserver.observe(sentinel);
     }
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
@@ -195,6 +254,10 @@
 
       feed.innerHTML = posts.map(renderPost).join('');
       loadTwitterWidgets();
+
+      if (!activeTag && hasMore) {
+        setupInfiniteScroll();
+      }
     }
 
     function filterByTag(tag) {
